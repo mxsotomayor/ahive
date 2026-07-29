@@ -1,12 +1,18 @@
-# Maxwell Issues Tracker
+# Ahive
 
-Maxwell is a local prototype for managing assigned work across Organizations,
-Projects, Products, and external issue platforms from one workspace.
+Ahive is a local-first developer work orchestration project. It is evolving the
+existing Maxwell issue workspace into a place where configurable agents can use
+Project, Product, Issue, and approved local-repository context to help the user
+perform development work safely.
+
+The current runtime combines the Maxwell issue-management UI with Ahive's
+transactional workspace and verified Repository API. Agent execution behavior
+is still planned and must not be inferred from the new product direction.
 
 The shared product and engineering specification is the source for scope,
 terminology, decisions, architecture, and feature status:
 
-## [Open the Maxwell specification](docs/README.md)
+## [Open the Ahive specification](docs/README.md)
 
 Key documents:
 
@@ -16,10 +22,11 @@ Key documents:
 - [Architecture](docs/ARCHITECTURE.md)
 - [Features and roadmap](docs/FEATURES.md)
 - [Decision records](docs/decisions/README.md)
+- [Agent implementation backlog](docs/ahive-tasks/README.md)
 
 ## Run locally
 
-Requirements: Node.js 18 or newer.
+Requirements: Node.js 22 or newer.
 
 ```powershell
 pnpm dev
@@ -36,6 +43,70 @@ Products, Connector Accounts, and Product Sources. Unused Product Sources can
 be removed. Sources with Issue links, and other records with existing
 relationships, must be deactivated so history remains intact.
 
+Repository management is available inside each Project on the **Workspace**
+screen. Configure one or more absolute allowed roots in `.env` before
+verification:
+
+```dotenv
+AHIVE_REPOSITORY_ROOTS=E:\WORK;E:\TOOLS
+```
+
+The same operations remain available through the API: create with `POST
+/api/workspace/repositories`, update or activate/deactivate with `PATCH
+/api/workspace/repositories/:id`, verify with `POST
+/api/repositories/:id/verify`, and inspect Git metadata with `GET
+/api/repositories/:id/inspect`.
+
+Use **Agents** in the sidebar to configure the local Codex CLI Harness, reusable
+Agent Profiles, and Project-scoped Assignments. Ahive uses the local `codex` CLI
+and its existing ChatGPT login. Run `codex login` if needed; Ahive neither calls
+the OpenAI REST API directly nor stores an OpenAI API key. The same CRUD flows
+are available at `/api/harness-accounts`, `/api/agent-profiles`, and
+`/api/agent-assignments`. Agent Profile models are chosen from the fixed catalog
+returned by `/api/agent-models`; arbitrary model text is not accepted.
+
+The Codex CLI may be installed independently in the terminal; the VS Code
+extension is not required. Ahive resolves `codex` from `PATH`. On Windows it
+also safely supports the npm `codex.cmd` shim without invoking commands through
+a shell. Set `AHIVE_CODEX_EXECUTABLE` to an absolute standalone CLI path when
+multiple installations exist and PATH order selects the wrong one.
+
+The **Agent Tasks** section in the Agents page creates durable Project-scoped
+tasks and opens their conversations. Send a message to start a bounded local
+Codex CLI turn, watch the visible answer stream into the open conversation,
+use **Stop** to cancel an active turn, and reopen a Task to reload its persisted
+transcript. Production conversations use `codex app-server` over local stdio so
+Agent message deltas reach the browser without a direct OpenAI REST call. The context
+sidebar always shows the Agent, Project, optional Product, Repository, and
+Issue. A Repository-scoped Run receives exactly four server-controlled tools:
+bounded file listing, literal text search, bounded text reads, and Git status/
+diff summaries. The built-in shell, file changes, tests, web access, binary
+content, and common secret files remain unavailable.
+
+Run the development server in a visible terminal to trace Agent work:
+
+```powershell
+pnpm.cmd dev
+```
+
+Every lifecycle and repository-tool step is printed as one structured
+`[agent-trace]` JSON line. Traces include Run IDs, tool names, safe request
+metadata, result counts, durations, and outcomes. They deliberately omit prompt
+text, file contents, command strings, credentials, and hidden reasoning. The
+same bounded repository-tool activity is stored on the durable Agent Run.
+Streaming trace lines report only cumulative output character counts, not the
+assistant text itself.
+
+The bounded CLI proof is reproducible with `pnpm spike:codex -- --live`. It is
+opt-in because it consumes a real Codex turn. See
+[the sanitized Harness findings](docs/CODEX-HARNESS-SPIKE.md). Production Agent
+Runs are now available at `GET`/`POST /api/agent-tasks/:id/runs`. A POST may
+include `{ "message": "..." }`; it executes a bounded chat-only turn and
+persists the visible assistant reply on success. Streaming events are available
+through `GET /api/agent-runs/:id/events`; reconnect with
+`Last-Event-ID` or `?cursor=<sequence>`. Cancel an active Run with `POST
+/api/agent-runs/:id/cancel`.
+
 Install dependencies once with `pnpm install`.
 
 ## Verify
@@ -50,21 +121,22 @@ cmd /c npm test
 Copy `.env.example` to `.env` and configure only the connectors you use. Never
 commit `.env` or paste access tokens into documentation or chat.
 
-The active neutral store is `data/maxwell.json`. It contains private hierarchy,
-Issue, Product Source, and external-link data and is ignored by Git. The former
-`data/issues.json` provider-shaped cache is also ignored and is used only as
-one-time migration input when the neutral store has no Issues.
+The active neutral store is SQLite at `data/ahive.db`. It contains private
+hierarchy, Issue, Product Source, External Issue Link, and Repository data and
+is ignored by Git. The retained `data/maxwell.json` is the recoverable cutover
+source, and `data/issues.json` is the older provider-shaped migration input.
+See [persistence and recovery](docs/PERSISTENCE.md).
 
 ### Google Sheets read/write setup
 
-Maxwell uses Google OAuth 2.0 user authorization, not a service-account key.
+Ahive uses Google OAuth 2.0 user authorization, not a service-account key.
 
 1. In Google Cloud, enable the Google Sheets API, configure the OAuth consent
    screen, and create an OAuth client of type **Web application**.
 2. Register this exact authorized redirect URI:
    `http://127.0.0.1:4173/api/google/oauth/callback`.
 3. Put `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`, then restart
-   Maxwell. Change `GOOGLE_REDIRECT_URI` in both places if the app uses another
+   Ahive. Change `GOOGLE_REDIRECT_URI` in both places if the app uses another
    host or port.
 4. In **Workspace**, create a Google Sheets Connector Account. Add a Product
    Source containing the spreadsheet ID from its URL, worksheet tab, and A1
@@ -81,8 +153,9 @@ ranges outside its configured worksheet tab.
 
 ## Current implementation note
 
-The active prototype currently pulls assigned issues from a custom-hosted GitLab
+The active runtime currently pulls assigned issues from a custom-hosted GitLab
 instance and uses GitLab-first create, close, and reopen behavior. This is a
-temporary implementation for the current IRN dataset, not the final origin and
-replica model. See [decision 0005](docs/decisions/0005-gitlab-prototype-authority.md)
-and [decision 0006](docs/decisions/0006-product-scoped-sources-and-issue-origin.md).
+temporary implementation for the current IRN dataset and the inherited Maxwell
+UI still focuses on Issues. See [decision 0011](docs/decisions/0011-ahive-agent-centered-product.md)
+for the accepted Ahive direction and the
+[ordered task backlog](docs/ahive-tasks/README.md) for implementation status.

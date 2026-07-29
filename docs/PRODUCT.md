@@ -1,46 +1,65 @@
-# Product Specification
+# Ahive Product Specification
 
 Status: **Working specification**  
-Last updated: **2026-07-18**
+Last updated: **2026-07-29**
 
 ## Product statement
 
-Maxwell is a personal issue workspace for managing work across Organizations,
-Projects, and Products while preserving every task's external origin and its
-representations in GitLab, GitHub, OpenProject, spreadsheets, and future Sources.
+Ahive is a local-first developer work orchestration workspace. It brings
+Organizations, Projects, Products, repositories, Issues, and configurable AI
+agents into one place so a developer can understand assigned work, delegate a
+bounded task, supervise execution, and review the result without losing its
+business or source context.
+
+Issue aggregation remains a core source of work context. It is no longer the
+whole product: Ahive's primary purpose is to manage the agents that help the
+user perform that work.
 
 ## Problem
 
-The same Product can be tracked in several platforms, and the same work may be
-represented more than once. Checking each platform separately makes it hard to
-know:
+A developer's work is fragmented across issue trackers, project boards,
+spreadsheets, local repositories, conversations, and AI tools. Even when a task
+is visible, the developer still has to reconstruct:
 
-- which tasks are assigned to the user;
-- which Organization, Project, and Product they belong to;
-- where each Issue originated;
-- which other Sources contain a replica;
-- whether a change has been synchronized successfully.
+- which Organization, Project, and Product owns the work;
+- which external system contains the original Issue;
+- which local repository contains the relevant code;
+- which agent is suitable for the task;
+- what context and permissions the agent received;
+- what the agent changed, tested, or failed to complete;
+- whether any code or external Issue update has been accepted.
 
-Maxwell solves this without making its core Issue dependent on a provider.
+Ahive provides one local control plane for this context and execution history.
 
-## Product hierarchy
+## Primary user
+
+The first release is for one developer using Ahive locally. The user manages
+their own Organizations, Projects, Products, issue Sources, repositories, Agent
+Profiles, and Agent Tasks.
+
+Team administration, hosted execution, and shared multi-user permissions are
+not part of the first Agent milestone.
+
+## Work context
+
+The accepted business hierarchy remains:
 
 ```text
 Organization -> Project -> Product -> Issue
 ```
 
-- **Organization:** an employer or owning business context, such as Zing
-  Developers.
-- **Project:** an initiative managed by that Organization, such as IRN.
-- **Product:** a deliverable or operational product inside a Project. A Product
-  may have the same display name as its Project.
-- **Issue:** the provider-independent task belonging to one Product.
+- **Organization:** an employer or owning business context.
+- **Project:** an initiative managed by that Organization.
+- **Product:** a deliverable or operational boundary inside a Project.
+- **Issue:** a provider-independent work record belonging to one Product.
 
-Entities use stable IDs, so names do not need to be globally unique.
+Projects may register one or more local repositories. Products continue to own
+external Product Sources. Agent work is scoped to a Project and may narrow its
+context to a Product, Repository, and Issue.
 
-## First real-world configuration
+## First real-world context
 
-The initial structure is:
+The initial hierarchy remains:
 
 ```text
 Organization: Zing Developers
@@ -48,100 +67,137 @@ Organization: Zing Developers
     Product: IRN
 ```
 
-The IRN Product can have these Sources:
-
-| Source | External context | Purpose |
-| --- | --- | --- |
-| GitLab | Accenture / IRN | Current operational issue source |
-| OpenProject | Accenture / IRN | Work-package representation |
-| GitHub Projects | Zing | Employer-side engineering representation |
-| Excel or Google Sheets | Zing | Employer-side reporting representation |
-
-Accenture and IRN Portugal remain relevant participant Organizations or
-stakeholders. The mandatory ownership hierarchy does not need to duplicate the
-same Project under each participant.
-
-## Primary user
-
-The first release is single-user and focuses on issues assigned to the user.
-Multi-user collaboration, team administration, and shared permissions are not
-part of the current prototype.
+The IRN Product may use GitLab, GitHub Projects, OpenProject, and Google Sheets
+as Issue representations. The IRN Project may also register the local code
+repositories that an approved Agent can inspect or modify.
 
 ## Product goals
 
-1. Show assigned Issues across all configured Products in one place.
-2. Preserve Organization, Project, Product, and origin Source context.
-3. Let each Product configure one or more external Sources.
-4. Keep the core Issue independent of external providers.
-5. Publish an Issue to selected Sources belonging to the same Product.
-6. Preserve stable links to origin and replica representations.
-7. Make sync state, errors, and conflicts understandable.
-8. Allow new provider adapters without changing the core Issue model.
+1. Manage reusable Agent Profiles with a harness provider, model, description,
+   traits, instructions, and permissions.
+2. Assign Agents to explicit Project, Product, and Repository contexts.
+3. Let the user give an Agent an ad-hoc task or a task backed by an Issue.
+4. Preserve conversational history and observable execution results.
+5. Let Agents inspect and, only after approval, modify registered repositories.
+6. Protect existing code, uncommitted work, credentials, and external systems.
+7. Show diffs, test evidence, failures, and approval history before acceptance.
+8. Continue aggregating provider-neutral Issues and preserve their external
+   origin and replica identities.
+9. Keep harnesses, model providers, execution backends, and Issue connectors
+   replaceable behind stable contracts.
 
-## Initial duplicate policy
+## Primary developer workflow
 
-Automatic fuzzy deduplication is not required. If two different Sources import
-similar tasks without an existing identity link, Maxwell may show two Issues.
-This is safer than merging unrelated work by title.
+```text
+Configure work context
+  -> Select or synchronize an Issue, or create an ad-hoc task
+  -> Select an Agent and registered Repository
+  -> Discuss and refine the objective
+  -> Review the Agent's plan
+  -> Approve a bounded execution capability
+  -> Observe repository work and tests
+  -> Review the diff and evidence
+  -> Accept, retain, or discard the result
+  -> Optionally approve an Issue status update
+```
 
-Once Maxwell publishes an Issue to another Source, it stores the returned
-external identity as a replica link. Future pulls then update that representation
-instead of creating another Issue.
+Conversation and execution are distinct. A user message may ask an Agent to
+plan, explain, or investigate; it does not silently authorize repository or
+external-system mutations.
 
-## Core user workflows
+## Agent management workflows
 
-### Configure a Product
+### Configure an Agent
 
-The user creates or selects an Organization, Project, and Product, then attaches
-one or more Sources. Each Source identifies its provider account and exact
-external container.
+The user creates a reusable Agent Profile, selects its harness and model, and
+defines its description, traits, instructions, and default permission policy.
+The user then assigns the Agent to one or more Projects, optionally narrowing an
+assignment to a Product and registered Repository.
 
-### Import from a Source
+### Give an Agent a task
 
-The user synchronizes a Product Source. If the external identity is already
-linked, Maxwell updates the existing Issue. Otherwise it creates a neutral Issue
-whose origin is that Product Source.
+The user starts an Agent Task from an existing Issue or from an ad-hoc
+objective. Ahive supplies only the context allowed by the selected Assignment.
+The user and Agent can discuss the task before execution is requested.
 
-### View work
+### Supervise repository work
 
-The user sees Issues across Products and can filter by Organization, Project,
-Product, origin, replica Source, and status. Each Issue shows where it originated
-and where else it exists.
+Repository-aware Agents begin with read-only access. A modifying run uses an
+isolated workspace and requires explicit approval. Ahive records visible tool
+activity, changed files, tests, failures, and final output. The user decides
+whether the result should be retained or discarded.
 
-### Create an Issue
+### Close the work loop
 
-The user selects a Product and an initial Source. Maxwell creates the external
-Issue there, then records it as the origin. A future Maxwell-local origin may be
-added through a separate decision.
+Completing an Agent Run does not automatically complete an Issue. If an Agent
+Task is linked to an Issue, Ahive may propose a status transition and must show
+the exact origin Source and operation before the user approves it.
 
-### Publish to another Source
+## Supporting Issue workflows
 
-The user selects an Issue and one or more target Sources configured for the same
-Product. Maxwell previews the operation, creates or updates representations, and
-stores each returned external identity as a replica link.
+Issue synchronization continues to follow the existing source-agnostic model:
 
-### Complete or reopen an Issue
+- Products configure one or more external Sources.
+- Imported Issues retain their origin Product Source.
+- External identities, not titles, determine repeated-import identity.
+- Other representations are stored as replica links.
+- Cross-Product synchronization is prohibited.
+- External writes are deliberate and observable.
 
-The command is applied to the origin and propagated to configured replicas when
-allowed. Partial failures remain visible and retryable.
+Completing full cross-provider publication remains useful, but it is scheduled
+after the first Agent MVP unless required by an Agent workflow.
 
-## Non-goals for the first production milestone
+## First Agent milestone
 
-- Replacing the complete UI of every external platform.
-- Automatic title-based or fuzzy duplicate merging.
-- Synchronizing Issues between different Products.
-- Silent bidirectional synchronization with no conflict policy.
-- General-purpose planning for whole teams.
-- Cloud hosting or multi-user authorization before the local model is stable.
+The first milestone is successful when the user can:
+
+1. Register and verify a local Project repository.
+2. Configure a Codex CLI-backed Agent Profile.
+3. Assign that Agent to the Project and Repository.
+4. Create a Project-scoped conversation.
+5. Let the Agent inspect the Repository without modifying it.
+6. Stop a running response and recover the conversation after reload.
+
+Guarded editing, isolated worktrees, tests, Issue write-back, and multi-agent
+coordination follow as explicit later tasks in the Agent MVP backlog.
+
+## Non-goals for the first Agent milestone
+
+- Silent or fully autonomous code changes.
+- Automatic commits, pushes, merges, or pull requests.
+- Arbitrary filesystem or shell access supplied through chat.
+- Scheduled or unattended Agent Tasks.
+- Multi-agent orchestration and handoffs.
+- Cloud-hosted execution.
+- Multi-user collaboration and shared permission administration.
+- Replacing the complete UI of external issue platforms.
+- Automatic title-based Issue deduplication.
+
+## Roadmap priority
+
+1. Accept the Ahive product, safety, and Agent domain specifications.
+2. Introduce durable transactional persistence without losing current data.
+3. Register and safely inspect local Project repositories.
+4. Manage Harness Accounts, Agent Profiles, and Assignments.
+5. Support conversational, cancellable Agent Tasks.
+6. Add constrained read-only repository tools.
+7. Add approval-gated isolated code work and review.
+8. Connect Issues to Agent Tasks and explicit status write-back.
+9. Resume broader cross-provider publication and advanced automation.
+
+The executable backlog and approval criteria live in
+[`docs/ahive-tasks/`](ahive-tasks/README.md).
 
 ## Open product questions
 
-These remain unresolved and should become decision records when answered:
+These require later decisions and must not be silently resolved during this
+reframing task:
 
-1. Should the default inbox include only assigned Issues, or also created,
-   watched, or managed Issues?
-2. Should changes made directly in replicas be ignored, overwritten from the
-   origin, or presented as conflicts?
-3. Should a new Issue always require an external origin Source, or may Maxwell
-   itself be the origin?
-4. Should users be able to manually merge duplicate Issues after import?
+1. Should one Repository belong only to a Project, or may a Product claim it as
+   its default Repository?
+2. Which execution backend provides safe local repository access on Windows?
+3. Which permissions may become reusable policy and which must remain per-Run?
+4. When should an accepted worktree become a commit, branch, or pull request?
+5. How should model cost and token budgets be presented and limited?
+6. Should the default Issue inbox include only assigned work or also watched and
+   managed work?

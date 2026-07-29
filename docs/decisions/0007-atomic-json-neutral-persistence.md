@@ -1,6 +1,6 @@
 # 0007: Atomic JSON Neutral Persistence for the Local Prototype
 
-Status: **Accepted**  
+Status: **Superseded by 0015**
 Date: **2026-07-18**
 
 ## Context
