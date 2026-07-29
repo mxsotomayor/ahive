@@ -1,0 +1,11 @@
+.env
+.env.local
+node_modules/
+.DS_Store
+Thumbs.db
+data/issues.json
+data/issues.json.tmp
+data/maxwell.json
+data/maxwell.json.tmp
+data/google-oauth.json
+data/google-oauth.json.tmp

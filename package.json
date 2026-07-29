@@ -1,0 +1,15 @@
+{
+  "name": "ahive",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.mjs",
+    "start": "node server.mjs",
+    "check": "node --check app.js && node --check server.mjs && node --check lib/github.mjs && node --check lib/gitlab.mjs && node --check lib/google-sheets.mjs && node --check lib/local-store.mjs && node --check lib/neutral-store.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "googleapis": "^173.0.0"
+  }
+}
