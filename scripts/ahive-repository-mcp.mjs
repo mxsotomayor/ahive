@@ -1,0 +1,103 @@
+#!/usr/bin/env node
+import { appendFileSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import * as z from "zod/v4";
+import { openDatabase } from "../lib/database.mjs";
+import { createSqliteNeutralStore } from "../lib/sqlite-neutral-store.mjs";
+import { createRepositoryToolService, RepositoryToolError } from "../lib/repository-tools.mjs";
+
+const args = parseArguments(process.argv.slice(2));
+const database = openDatabase(args.database, { readonly: true });
+const store = createSqliteNeutralStore(database, args.database);
+let sequence = 0;
+
+const service = createRepositoryToolService({
+  readStore: async () => store.readStore(),
+  repositoryRoots: JSON.parse(args.roots),
+  onAudit(event) {
+    const record = { sequence: ++sequence, timestamp: new Date().toISOString(), runId: args.run, ...event };
+    mkdirSync(dirname(args.audit), { recursive: true });
+    appendFileSync(args.audit, `${JSON.stringify(record)}\n`, { encoding: "utf8" });
+    console.error(`AHIVE_TOOL_TRACE ${JSON.stringify(record)}`);
+  }
+});
+
+const server = new McpServer({ name: "ahive-repository", version: "0.1.0" });
+const readOnlyAnnotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+
+server.registerTool("list_files", {
+  title: "List repository files",
+  description: "List bounded, non-sensitive text files inside the verified Repository. Symlinks and ignored directories are skipped.",
+  inputSchema: {
+    path: z.string().max(240).optional().describe("Relative directory path; defaults to the Repository root."),
+    limit: z.number().int().min(1).max(200).optional().describe("Maximum files to return; defaults to 100.")
+  },
+  annotations: readOnlyAnnotations
+}, input => invoke("list_files", input));
+
+server.registerTool("search_text", {
+  title: "Search repository text",
+  description: "Search for a literal text fragment within bounded, non-sensitive text files in the verified Repository.",
+  inputSchema: {
+    query: z.string().min(1).max(200).describe("Literal one-line text to find."),
+    path: z.string().max(240).optional().describe("Relative directory path; defaults to the Repository root."),
+    filePattern: z.string().max(120).optional().describe("Optional bounded wildcard such as *.mjs."),
+    caseSensitive: z.boolean().optional().describe("Use case-sensitive matching; defaults to false."),
+    maxResults: z.number().int().min(1).max(100).optional().describe("Maximum matches; defaults to 50.")
+  },
+  annotations: readOnlyAnnotations
+}, input => invoke("search_text", input));
+
+server.registerTool("read_text", {
+  title: "Read repository text",
+  description: "Read a bounded line range from one non-sensitive text file inside the verified Repository.",
+  inputSchema: {
+    path: z.string().min(1).max(240).describe("Relative file path."),
+    startLine: z.number().int().min(1).optional().describe("First line, starting at 1."),
+    maxLines: z.number().int().min(1).max(200).optional().describe("Maximum lines; defaults to 120.")
+  },
+  annotations: readOnlyAnnotations
+}, input => invoke("read_text", input));
+
+server.registerTool("git_summary", {
+  title: "Inspect Git summary",
+  description: "Read branch, HEAD, changed-file counts, status-code counts, and staged/unstaged diff statistics without exposing file contents.",
+  inputSchema: {},
+  annotations: readOnlyAnnotations
+}, input => invoke("git_summary", input));
+
+async function invoke(tool, input) {
+  try {
+    const result = tool === "list_files" ? await service.listFiles(args.repository, input)
+      : tool === "search_text" ? await service.searchText(args.repository, input)
+        : tool === "read_text" ? await service.readText(args.repository, input)
+          : await service.gitSummary(args.repository, input);
+    return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
+  } catch (error) {
+    const message = error instanceof RepositoryToolError ? `${error.code}: ${error.message}` : "tool_failure: Repository tool failed safely.";
+    return { isError: true, content: [{ type: "text", text: message }] };
+  }
+}
+
+function parseArguments(values) {
+  const result = {};
+  for (let index = 0; index < values.length; index += 2) {
+    const name = values[index]?.replace(/^--/, "");
+    if (!name || values[index + 1] == null) throw new Error("Repository MCP arguments must be name/value pairs.");
+    result[name] = values[index + 1];
+  }
+  for (const required of ["database", "repository", "roots", "audit", "run"]) {
+    if (!result[required]) throw new Error(`Missing --${required}.`);
+  }
+  const roots = JSON.parse(result.roots);
+  if (!Array.isArray(roots) || !roots.length) throw new Error("At least one Repository root is required.");
+  return result;
+}
+
+const transport = new StdioServerTransport();
+await server.connect(transport);
+console.error(`AHIVE_TOOL_TRACE ${JSON.stringify({ sequence: 0, timestamp: new Date().toISOString(), runId: args.run, repositoryId: args.repository, tool: "mcp_server", phase: "ready" })}`);
+
+for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, () => { database.close(); process.exit(0); });

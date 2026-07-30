@@ -1,10 +1,57 @@
-# Features and Roadmap
+# Ahive Features and Roadmap
 
 Status: **Living implementation checklist**  
-Last updated: **2026-07-19**
+Last updated: **2026-07-29**
 
 A checked item is implemented and verified in the current prototype. Unchecked
 items are not complete, even if preparatory code exists.
+
+## Current priority: Agent MVP
+
+Ahive's primary roadmap is now Agent management and supervised developer work.
+The existing Issue workspace supplies Project, Product, Source, and task context
+for Agents. Broader cross-provider Issue publication remains planned but is no
+longer the next product milestone.
+
+The executable backlog is maintained in
+[`docs/ahive-tasks/`](ahive-tasks/README.md). Its milestone order is:
+
+- [x] Reframe the product as a local-first developer work orchestration platform.
+- [x] Accept Agent execution authority and safety boundaries (Task 002).
+- [x] Accept the provider-neutral Agent domain model (Task 003).
+- [x] Introduce transactional persistence without losing existing data (Tasks 004–006).
+- [x] Register and safely inspect local Project repositories (Tasks 007–010).
+  - [x] Persist Repository records and API operations (Task 007).
+  - [x] Constrain paths to configured canonical roots (Task 008).
+  - [x] Inspect verified Git repositories without mutation (Task 009).
+  - [x] Build the responsive browser management flow (Task 010).
+- [x] Manage Harness Accounts, Agent Profiles, and Assignments (Tasks 011–014).
+  - [x] Persist credential-free Codex CLI Harness Accounts with runtime status (Task 011).
+  - [x] Support standalone terminal installs, including the Windows npm CLI shim.
+  - [x] Add reusable Agent Profiles (Task 012).
+  - [x] Add Project-scoped Agent Assignments (Task 013).
+  - [x] Build the Agent management surface (Task 014).
+  - [x] Restrict Agent Profiles to a selectable eight-model OpenAI catalog.
+- [x] Support conversational, streamed, cancellable Agent Tasks (Tasks 015–019).
+  - [x] Keep the conversation surface mounted during Run and page-state refreshes.
+  - [x] Stream Codex app-server Agent message deltas into the active chat bubble.
+  - [x] Persist Agent Tasks, Conversations, and visible Messages (Task 015).
+  - [x] Prove the Codex CLI process boundary with a sanitized live spike (Task 016).
+  - [x] Implement durable chat-only Agent Runs (Task 017).
+  - [x] Stream and cancel Agent Runs (Task 018).
+  - [x] Build the Agent conversation UI (Task 019).
+- [ ] Add approval-gated repository tools and isolated code work (Tasks 020–026).
+  - [x] Add constrained read-only Repository tools with durable audit metadata (Task 020).
+  - [ ] Add approvals, isolated worktrees, guarded edits, tests, artifacts, and review UI (Tasks 021–026).
+- [ ] Connect Issues to Agent Tasks and explicit status write-back (Tasks 027–028).
+- [ ] Complete recovery, security, and Agent MVP acceptance (Tasks 029–030).
+
+### First Agent milestone
+
+The first usable slice will let the user configure a Codex CLI-backed Agent,
+assign it to a Project and verified local Repository, maintain a conversation,
+and allow bounded read-only repository inspection. Code modification is a later,
+approval-gated slice and must not be simulated in the UI.
 
 ## Done
 
@@ -27,8 +74,8 @@ items are not complete, even if preparatory code exists.
 - [x] Offset and link-header pagination support.
 - [x] Normalize status, priority, labels, dates, project path, and source URL.
 - [x] Fetch open and closed assigned issues.
-- [x] Create a GitLab issue through Maxwell and assign it to the token owner.
-- [x] Close and reopen the real GitLab issue from Maxwell.
+- [x] Create a GitLab issue through Ahive and assign it to the token owner.
+- [x] Close and reopen the real GitLab issue from Ahive.
 - [x] Live connection and data-fetch smoke test.
 
 ### Local data and safety
@@ -38,6 +85,12 @@ items are not complete, even if preparatory code exists.
 - [x] Remove historical dummy data from source and browser migration path.
 - [x] Report outbound readiness without claiming that publishing occurred.
 - [x] Automated tests for connectors, mappings, creation behavior, and cache.
+- [x] Make SQLite the authoritative neutral workspace store.
+- [x] Import the prior JSON store once with a recoverable backup and ID checks.
+- [x] Apply ordered, idempotent schema migrations with database constraints.
+- [x] Register Project-owned Repositories with optional same-Project Products.
+- [x] Verify Repository paths against canonical allowed roots.
+- [x] Inspect branch, HEAD, remote hosts, and aggregate dirty state read-only.
 
 ### GitHub foundation
 
@@ -49,7 +102,7 @@ items are not complete, even if preparatory code exists.
 The GitHub foundation is not an active cross-system synchronization workflow.
 Identity mapping and outbound creation are still required.
 
-## Next: Product-centered foundation
+## Existing Issue foundation: remaining work
 
 - [x] Persist Organizations.
 - [x] Persist Projects owned by Organizations.
@@ -89,10 +142,11 @@ Identity mapping and outbound creation are still required.
 - Product-boundary constraints prevent cross-Product publication.
 - Existing GitLab URLs and external identities survive migration.
 
-The milestone is still open because Issue filtering and origin/replica details
-are not yet available in the Issue UI.
+This supporting milestone remains open because Issue filtering and
+origin/replica details are not yet available in the Issue UI. It does not block
+the initial read-only Agent milestone unless required for correct Agent context.
 
-## Then: publish within a Product
+## Deferred supporting milestone: publish within a Product
 
 - [ ] Select an Issue and target Sources from the same Product.
 - [ ] Show a dry-run preview before external creation or bulk updates.
@@ -103,7 +157,7 @@ are not yet available in the Issue UI.
 - [ ] Show partial failures with safe retry actions.
 - [ ] Detect replica drift and expose conflicts.
 
-## IRN Product Sources
+## Supporting IRN Product Sources
 
 ### OpenProject
 
@@ -131,7 +185,7 @@ are not yet available in the Issue UI.
 - [x] Implement Product Source-scoped read, overwrite, append, and access-test routes.
 - [x] Show configuration, authorization, redirect URI, and connection state in the UI.
 - [x] Create and apply a formatted neutral issue-register template without dummy Issues.
-- [ ] Define the row schema and include a stable Maxwell ID column.
+- [ ] Define the row schema and include a stable Ahive ID column.
 - [ ] Import existing rows without fuzzy title merging.
 - [ ] Implement idempotent row upsert.
 - [ ] Decide how direct spreadsheet edits affect canonical Issues.
@@ -144,7 +198,7 @@ are not yet available in the Issue UI.
 
 - [ ] Manual duplicate review and Issue merging.
 - [ ] Scheduled synchronization.
-- [ ] Export and backup for neutral Maxwell data.
+- [ ] Export and backup for neutral Ahive data.
 - [ ] Application login and encrypted credential storage.
 - [ ] Multiple users and identity mapping per provider.
 - [ ] Team views, notifications, and reminders.

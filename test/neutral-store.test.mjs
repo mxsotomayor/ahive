@@ -58,6 +58,28 @@ test("persists the Organization, Project, and Product hierarchy with matching na
   }
 });
 
+test("does not recreate seeded workspace entities after they are renamed", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "maxwell-neutral-"));
+  const filePath = join(directory, "maxwell.json");
+  try {
+    const initialized = await initializeNeutralWorkspace(filePath, workspace);
+    await updateWorkspaceEntity(filePath, "organization", initialized.organization.id, { name: "Zing" });
+    await updateWorkspaceEntity(filePath, "project", initialized.project.id, { name: "IRN Delivery" });
+    await updateWorkspaceEntity(filePath, "product", initialized.product.id, { name: "IRN Process Manager" });
+
+    const restarted = await initializeNeutralWorkspace(filePath, workspace);
+
+    assert.equal(restarted.store.organizations.length, 1);
+    assert.equal(restarted.store.projects.length, 1);
+    assert.equal(restarted.store.products.length, 1);
+    assert.equal(restarted.organization.name, "Zing");
+    assert.equal(restarted.project.name, "IRN Delivery");
+    assert.equal(restarted.product.name, "IRN Process Manager");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("imports GitLab issues as neutral Issues with Product Sources and origin links", async () => {
   const directory = await mkdtemp(join(tmpdir(), "maxwell-neutral-"));
   const filePath = join(directory, "maxwell.json");

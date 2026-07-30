@@ -7,5 +7,10 @@ data/issues.json
 data/issues.json.tmp
 data/maxwell.json
 data/maxwell.json.tmp
+data/ahive.db
+data/ahive.db-shm
+data/ahive.db-wal
+data/backups/
 data/google-oauth.json
 data/google-oauth.json.tmp
+data/agent-tool-audit/

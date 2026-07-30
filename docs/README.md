@@ -1,17 +1,24 @@
-# Maxwell Specification
+# Ahive Specification
 
-This directory is the shared product and engineering specification for Maxwell.
-It records what we are building, the language we use, what already works, what
-remains, and why important decisions were made.
+This directory is the shared product and engineering specification for Ahive,
+formerly called Maxwell. It records what we are building, the language we use,
+what already works, what remains, and why important decisions were made.
 
 ## Reading order
 
 1. [Constitution](CONSTITUTION.md) - stable principles and collaboration rules.
 2. [Product specification](PRODUCT.md) - problem, users, scope, and workflows.
-3. [Domain model](DOMAIN-MODEL.md) - Product-centered, source-agnostic concepts.
+3. [Domain model](DOMAIN-MODEL.md) - current Issue foundation; Agent extensions
+   are introduced through the ordered backlog.
 4. [Architecture](ARCHITECTURE.md) - current implementation and target design.
 5. [Features and roadmap](FEATURES.md) - completed and planned capabilities.
 6. [Decision records](decisions/README.md) - decisions, status, and history.
+7. [Ahive implementation tasks](ahive-tasks/README.md) - ordered execution
+   backlog with dependencies, verification, and approval criteria.
+8. [Persistence and recovery](PERSISTENCE.md) - SQLite cutover, backups, and
+   repository-root configuration.
+9. [Codex Harness spike](CODEX-HARNESS-SPIKE.md) - accepted CLI process,
+   streaming, redaction, continuation, cancellation, and Windows findings.
 
 ## Current model at a glance
 
@@ -22,7 +29,18 @@ Organization -> Project -> Product -> Issue
 ```
 
 Every imported Issue records one origin Source. It may have replica links in
-other Sources configured for the same Product.
+other Sources configured for the same Product. Ahive is now evolving an Agent
+execution layer around this work context:
+
+```text
+Project context + optional Issue + registered Repository
+                           |
+                           `-> Agent Task -> Conversation -> supervised Run
+```
+
+The Agent domain model, configuration, Tasks, and Conversations are persisted.
+Repository persistence and safe read-only inspection are implemented. The
+Codex CLI boundary is proven; production Agent Runs and execution UI are next.
 
 ## Document authority
 
