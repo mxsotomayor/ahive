@@ -4,7 +4,7 @@ import { spawn, execFile } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:net";
 import { promisify } from "node:util";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -16,10 +16,15 @@ test("Repository API supports the complete UI management flow", { timeout: 30_00
   const port = await availablePort();
   let child;
   try {
+    await mkdir(join(repositoryPath, "src"), { recursive: true });
+    await writeFile(join(repositoryPath, "README.md"), "# Repository explorer\n");
+    await writeFile(join(repositoryPath, "src", "app.js"), "export const ready = true;\n");
+    await writeFile(join(repositoryPath, ".env"), "SECRET=hidden\n");
     await run("git", ["init", "-b", "main", repositoryPath]);
     await run("git", ["-C", repositoryPath, "config", "user.email", "test@ahive.local"]);
     await run("git", ["-C", repositoryPath, "config", "user.name", "Ahive Test"]);
-    await run("git", ["-C", repositoryPath, "commit", "--allow-empty", "-m", "initial"]);
+    await run("git", ["-C", repositoryPath, "add", "README.md", "src/app.js"]);
+    await run("git", ["-C", repositoryPath, "commit", "-m", "initial"]);
 
     child = spawn(process.execPath, ["server.mjs"], {
       cwd: process.cwd(),
@@ -67,6 +72,30 @@ test("Repository API supports the complete UI management flow", { timeout: 30_00
     assert.equal(inspected.payload.git.branch, "main");
     assert.equal(inspected.payload.git.dirty, false);
 
+    const configuredCommands = await request(port, `/api/repositories/${valid.payload.entity.id}/verification-commands`, {
+      method: "PUT",
+      body: {
+        commands: [{
+          name: "Node smoke test",
+          executable: process.execPath,
+          args: ["--check", "src/app.js"],
+          workingDirectory: ".",
+          environment: { CI: "true" },
+          timeoutMs: 30_000,
+          maxOutputBytes: 16_384
+        }]
+      }
+    });
+    assert.equal(configuredCommands.status, 200);
+    assert.match(configuredCommands.payload.verificationCommands[0].id, /^verification-command-[a-f0-9]{24}$/);
+    const commandList = await request(port, `/api/repositories/${valid.payload.entity.id}/verification-commands`);
+    assert.deepEqual(commandList.payload.verificationCommands, configuredCommands.payload.verificationCommands);
+    const unsafeCommand = await request(port, `/api/repositories/${valid.payload.entity.id}/verification-commands`, {
+      method: "PUT",
+      body: { commands: [{ name: "Arbitrary shell", executable: process.platform === "win32" ? "C:\\Windows\\System32\\cmd.exe" : "/bin/sh", args: [] }] }
+    });
+    assert.equal(unsafeCommand.status, 400);
+
     const edited = await request(port, `/api/workspace/repositories/${valid.payload.entity.id}`, {
       method: "PATCH",
       body: { name: "Renamed working tree", accessMode: "guarded_write", active: false }
@@ -74,6 +103,7 @@ test("Repository API supports the complete UI management flow", { timeout: 30_00
     assert.equal(edited.status, 200);
     assert.equal(edited.payload.entity.name, "Renamed working tree");
     assert.equal(edited.payload.entity.active, false);
+    assert.deepEqual(edited.payload.entity.verificationCommands, configuredCommands.payload.verificationCommands);
 
     const invalid = await request(port, "/api/workspace/repositories", {
       method: "POST",
@@ -172,9 +202,15 @@ test("Repository API supports the complete UI management flow", { timeout: 30_00
       method: "POST",
       body: { harnessAccountId: taskHarness.payload.harnessAccount.id, name: "Task developer", model: "gpt-5.6-sol" }
     });
+    const reactivatedRepository = await request(port, `/api/workspace/repositories/${valid.payload.entity.id}`, {
+      method: "PATCH",
+      body: { active: true, accessMode: "read_only" }
+    });
+    assert.equal(reactivatedRepository.status, 200);
+    assert.equal((await request(port, `/api/repositories/${valid.payload.entity.id}/verify`, { method: "POST" })).status, 200);
     const taskAssignment = await request(port, "/api/agent-assignments", {
       method: "POST",
-      body: { agentProfileId: taskProfile.payload.agentProfile.id, projectId: project.id, productId: product.id }
+      body: { agentProfileId: taskProfile.payload.agentProfile.id, projectId: project.id, productId: product.id, repositoryId: valid.payload.entity.id }
     });
     const task = await request(port, "/api/agent-tasks", {
       method: "POST",
@@ -182,6 +218,18 @@ test("Repository API supports the complete UI management flow", { timeout: 30_00
     });
     assert.equal(task.status, 201);
     assert.equal(task.payload.agentTask.messageCount, 0);
+    const rootTree = await request(port, `/api/agent-tasks/${task.payload.agentTask.id}/repository/tree?path=.`);
+    assert.equal(rootTree.status, 200);
+    assert.ok(rootTree.payload.directory.entries.some(entry => entry.path === "src" && entry.type === "directory"));
+    assert.ok(rootTree.payload.directory.entries.some(entry => entry.path === "README.md" && entry.type === "file"));
+    assert.equal(rootTree.payload.directory.entries.some(entry => entry.path === ".env"), false);
+    const sourceTree = await request(port, `/api/agent-tasks/${task.payload.agentTask.id}/repository/tree?path=src`);
+    assert.deepEqual(sourceTree.payload.directory.entries.map(entry => entry.path), ["src/app.js"]);
+    const filePreview = await request(port, `/api/agent-tasks/${task.payload.agentTask.id}/repository/file?path=src%2Fapp.js`);
+    assert.equal(filePreview.status, 200);
+    assert.match(filePreview.payload.file.text, /ready = true/);
+    const escapedPreview = await request(port, `/api/agent-tasks/${task.payload.agentTask.id}/repository/file?path=..%2F.env`);
+    assert.equal(escapedPreview.status, 400);
     for (const content of ["one", "two", "three"]) {
       assert.equal((await request(port, `/api/agent-tasks/${task.payload.agentTask.id}/messages`, {
         method: "POST", body: { role: "user", content }

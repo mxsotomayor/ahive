@@ -9,8 +9,8 @@
   "scripts": {
     "dev": "node --watch server.mjs",
     "start": "node server.mjs",
-    "check": "node --check app.js && node --check server.mjs && node --check lib/github.mjs && node --check lib/gitlab.mjs && node --check lib/google-sheets.mjs && node --check lib/local-store.mjs && node --check lib/neutral-store.mjs && node --check lib/database.mjs && node --check lib/sqlite-neutral-store.mjs && node --check lib/legacy-neutral-import.mjs && node --check lib/repository-paths.mjs && node --check lib/git-inspection.mjs && node --check lib/repository-tools.mjs && node --check lib/codex-cli.mjs && node --check lib/codex-harness-spike.mjs && node --check lib/codex-app-server.mjs && node --check lib/codex-exec.mjs && node --check lib/run-event-broker.mjs && node --check scripts/codex-harness-spike.mjs && node --check scripts/ahive-repository-mcp.mjs && node --check scripts/repository-tools-live-check.mjs",
-    "test": "node --test",
+    "check": "node --check app.js && node --check server.mjs && node --check lib/github.mjs && node --check lib/gitlab.mjs && node --check lib/google-sheets.mjs && node --check lib/local-store.mjs && node --check lib/neutral-store.mjs && node --check lib/database.mjs && node --check lib/sqlite-neutral-store.mjs && node --check lib/legacy-neutral-import.mjs && node --check lib/repository-paths.mjs && node --check lib/git-inspection.mjs && node --check lib/repository-tools.mjs && node --check lib/git-worktrees.mjs && node --check lib/guarded-write-tools.mjs && node --check lib/verification-commands.mjs && node --check lib/run-artifacts.mjs && node --check lib/codex-cli.mjs && node --check lib/codex-harness-spike.mjs && node --check lib/codex-app-server.mjs && node --check lib/codex-exec.mjs && node --check lib/run-event-broker.mjs && node --check scripts/codex-harness-spike.mjs && node --check scripts/ahive-repository-mcp.mjs && node --check scripts/repository-tools-live-check.mjs",
+    "test": "node --test --test-concurrency=2",
     "spike:codex": "node scripts/codex-harness-spike.mjs",
     "check:repository-tools": "node scripts/repository-tools-live-check.mjs"
   },

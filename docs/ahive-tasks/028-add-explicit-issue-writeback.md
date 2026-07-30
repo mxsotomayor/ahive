@@ -1,6 +1,6 @@
 # 028: Add Approved Issue Status Write-Back
 
-Status: **Pending**  
+Status: **Complete**
 Depends on: **027**
 
 ## Description
@@ -36,9 +36,27 @@ Close the work loop without allowing Agent completion to silently modify an Issu
 
 ## Approval criteria
 
-- [ ] Agent Run completion alone never updates an Issue.
-- [ ] The preview names the Issue, origin Source, and requested transition.
-- [ ] Denial leaves local and external Issue state unchanged.
-- [ ] Success updates the external origin before reporting local success.
-- [ ] Partial or failed writes remain visible and retryable.
+- [x] Agent Run completion alone never updates an Issue.
+- [x] The preview names the Issue, origin Source, and requested transition.
+- [x] Denial leaves local and external Issue state unchanged.
+- [x] Success updates the external origin before reporting local success.
+- [x] Partial or failed writes remain visible and retryable.
 
+## Completion evidence
+
+Run Review now shows a dry-run preview for the linked Issue's authoritative
+origin, exact external target, current status, and suggested `done` transition.
+Requesting it creates a durable post-Run `external.issue.write` approval without
+changing the already-completed Agent Run or Agent Task. Denial records a visible
+terminal attempt and performs no connector call.
+
+Approved execution consumes the exact target once, resolves the origin Product
+Source and its environment-backed Connector Account, and currently supports
+GitLab close through the existing connector. Ahive updates its neutral Issue
+only after GitLab succeeds. Upstream errors leave the local status unchanged,
+mark the link state unknown, preserve a bounded failure result, and offer a new
+approval-backed retry. Schema migration 13 persists this audit history.
+
+The isolated HTTP test exercises preview, denial, approval, upstream success,
+replay rejection, upstream failure, retry visibility, and persistence. The full
+suite passes 80 tests.

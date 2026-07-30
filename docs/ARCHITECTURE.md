@@ -11,11 +11,12 @@ Source model remains a supporting work-context subsystem. The new primary
 architecture will manage Agent configuration, Project repositories,
 conversations, supervised Runs, approvals, and reviewable outcomes.
 
-Chat-only Agent execution is implemented through the user's local Codex CLI,
-with durable Runs, sanitized SSE events, cancellation, and a persisted browser
-conversation. Repository tools and external writes are not available to these
-Runs yet. Registered Repositories can be path-verified and inspected separately
-through bounded, read-only Git commands. The transition is tracked in
+Agent execution is implemented through the user's local Codex CLI, with durable
+Runs, sanitized SSE events, cancellation, and a persisted browser conversation.
+Repository access is read-only by default; guarded-write Assignments may use an
+approved isolated worktree, exact file operations, and configured verification
+commands. Bounded review evidence is persisted outside primary rows and shown in
+the full-screen conversation. External writes remain unavailable. The transition is tracked in
 [`docs/ahive-tasks/`](ahive-tasks/README.md).
 
 ## Current prototype
@@ -83,12 +84,29 @@ data/google-oauth.json Ignored private Google refresh-token store
 | `GET` | `/api/agent-models` | List the fixed OpenAI model catalog accepted by Agent Profiles |
 | `GET`, `POST` | `/api/agent-assignments` | List effective contexts or create Project-scoped Assignments |
 | `PATCH`, `DELETE` | `/api/agent-assignments/:id` | Update or remove an unused Agent Assignment |
+| `GET` | `/api/issues/:id/agent-work` | Project read-only Issue context, compatible Assignments, and linked Task summaries |
 | `GET`, `POST` | `/api/agent-tasks` | List or create durable Agent Tasks with one Conversation |
 | `GET` | `/api/agent-tasks/:id` | Read one Agent Task and its Conversation summary |
 | `GET`, `POST` | `/api/agent-tasks/:id/messages` | Page or append visible Conversation Messages |
 | `GET`, `POST` | `/api/agent-tasks/:id/runs` | List Runs or execute one bounded chat-only turn |
+| `GET` | `/api/agent-tasks/:id/repository/tree` | Lazily list one safe directory for the Task Repository explorer |
+| `GET` | `/api/agent-tasks/:id/repository/file` | Preview up to 200 lines of one safe Task Repository text file |
 | `GET` | `/api/agent-runs/:id/events` | Stream ordered sanitized Run events with SSE cursor replay |
 | `POST` | `/api/agent-runs/:id/cancel` | Abort an active Run and persist cancellation |
+| `GET`, `POST` | `/api/agent-runs/:id/approvals` | List or create exact-target Approval Requests |
+| `POST` | `/api/agent-runs/:runId/approvals/:id/decision` | Approve or deny a pending request with an actor |
+| `POST` | `/api/agent-runs/:runId/approvals/:id/cancel` | Cancel an unresolved Approval Request |
+| `GET`, `POST` | `/api/agent-runs/:id/worktree` | Read or create the Run's approved managed worktree |
+| `GET` | `/api/managed-worktrees/:id/inspect` | Reconcile one worktree's presence, HEAD, and dirty state |
+| `POST` | `/api/managed-worktrees/:id/retain` | Retain a worktree and release its active modification lock |
+| `POST` | `/api/managed-worktrees/:id/discard` | Explicitly discard the exact confirmed worktree target |
+| `POST` | `/api/agent-runs/:id/guarded-write/apply-patch` | Apply one approved exact-context text patch inside the Run worktree |
+| `POST` | `/api/agent-runs/:id/guarded-write/create-file` | Create one approved text file inside an existing worktree directory |
+| `GET` | `/api/agent-runs/:id/file-changes` | Read ordered paths, hashes, byte counts, and guarded-write outcomes |
+| `GET`, `PUT` | `/api/repositories/:id/verification-commands` | Read or replace exact immutable Repository command policies |
+| `POST` | `/api/agent-runs/:id/verifications/:policyId` | Consume exact approval and execute one configured policy in the Run worktree |
+| `GET` | `/api/agent-runs/:id/artifacts[/:artifactId]` | List Run-scoped Artifact metadata or read integrity-checked bounded content |
+| `GET`, `POST` | `/api/agent-runs/:id/review` | Load consolidated Run evidence or record a review-only disposition |
 | `POST` | `/api/sync/outbound` | Report target readiness; publishes nothing yet |
 | `GET` | `/api/github/sync` | Read assigned GitHub Project items |
 | `PATCH` | `/api/github/status` | Update an existing GitHub Project Status field |
@@ -108,20 +126,24 @@ data/google-oauth.json Ignored private Google refresh-token store
 - Dummy data has been removed.
 - The existing private GitLab cache has been migrated to 20 neutral Issues and
   20 origin External Issue Links under the IRN Product.
-- Sixty-five automated tests cover connectors, paging, writes, neutral
+- The automated suite covers connectors, paging, writes, neutral
   hierarchy, stable import identity, SQLite constraints and serialization,
   Repository boundaries, safe paths, non-mutating Git inspection, Harness
   Account validation, Agent configuration and conversation UI rendering,
   responsive navigation, constrained Repository tools, the stdio MCP boundary,
-  adversarial path/content attempts, and secret-leak prevention.
+  adversarial path/content attempts, secret-leak prevention, the Repository
+  explorer, and durable single-use approval transitions.
 - The runtime now presents both the legacy Issue workspace and the new Agent
   configuration surface.
 - Repository persistence, verification, browser management, read-only Git
   inspection, the Codex CLI Harness boundary, reusable Agent Profiles, and
   Project-scoped Agent Assignments, durable Agent Tasks, Conversations, and
   visible Messages, durable chat-only Agent Runs, streaming, cancellation, and
-  the browser conversation flow, and four constrained read-only Repository
-  tools are implemented. There are no Approval or Run Artifact modules yet.
+  the full-screen browser conversation and Repository explorer, bounded
+  read-only Repository tools, durable Approval Requests, isolated managed Git
+  worktrees, guarded patch/create-file tools, and exact approved verification
+  command execution, bounded Run Artifacts, the Run Review drawer, and the
+  Issue-to-Agent workflow are implemented.
 
 ### Google credential boundary
 
@@ -145,10 +167,11 @@ The current implementation predates the accepted neutral model:
 4. Outbound synchronization reports readiness but does not publish.
 5. There is no durable Sync Run or Conflict storage.
 6. The GitHub client is not connected to neutral identity mapping or publishing.
-7. The Repository browser UI is implemented but awaits final wide/narrow visual acceptance.
+7. The Repository management UI and Agent Task file explorer are implemented;
+   final wide/narrow visual acceptance remains a manual check.
 8. The server has an in-process Run coordinator, reconnectable SSE stream, and
-   cancellation, but no durable background runner, worktree isolation, or
-   approval mechanism yet.
+   cancellation, durable approvals, and startup worktree reconciliation, but no
+   durable background runner yet.
 9. The monolithic browser application will need clearer module boundaries as
     conversational and Run state are added.
 
@@ -279,10 +302,13 @@ preserves stable IDs. See [decision 0015](decisions/0015-transactional-sqlite-pe
 
 The Workspace screen presents and manages the Organization, Project, Product,
 Connector Account, Product Source, and Project Repository hierarchy. The Agents
-screen manages Harness Accounts, reusable Profiles, and scoped Assignments with
-honest readiness states and no execution controls. Issue representation details,
-Sync Runs, conflicts, conversational Agent Tasks, live Run state, approval
-prompts, and diff/test review remain future UI work.
+screen manages Harness Accounts, reusable Profiles, scoped Assignments, durable
+Tasks, and full-screen conversations. A Repository drawer previews safe files;
+a Run Review drawer presents activity, approvals, exact changed paths, worktree
+disposition, tests, bounded artifacts, and review-only decisions. Issue
+drawers start Product-compatible Agent Tasks, list all linked Task/Run states,
+and navigate bidirectionally between Issue and conversation. Sync Runs,
+representation management, and conflicts remain future UI work.
 
 ## Accepted Agent safety boundaries
 
@@ -333,7 +359,15 @@ require these architectural boundaries:
     use app-server stdio message deltas and reconnect-safe SSE snapshots.
 17. **Done:** build the Agent conversation UI.
 18. **Done:** add constrained read-only Repository tools.
-19. **Next:** add the durable Run approval model.
-20. Add isolated worktrees, guarded changes, test policies, artifacts, and review UI.
-21. Connect Issues to Agent Tasks and explicit origin write-back.
-22. Resume broader replica publication and conflict work as supporting capabilities.
+19. **Done:** add a full-screen, read-only Repository explorer to Agent Tasks.
+20. **Done:** add the durable Run approval model.
+21. **Done:** add isolated Git worktrees.
+22. **Done:** add guarded code editing inside managed worktrees.
+23. **Done:** add approved test-command policies.
+24. **Done:** persist bounded Run artifacts.
+25. **Done:** complete the Run review UI.
+26. **Done:** connect existing neutral Issues to scoped Agent Tasks.
+27. **Done:** add explicit approved Issue status write-back.
+28. **Done:** add Run recovery and operational visibility.
+29. **Next:** execute the complete Agent MVP acceptance flow.
+30. Resume broader replica publication and conflict work as supporting capabilities.

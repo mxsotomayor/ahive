@@ -158,8 +158,10 @@ The first milestone is successful when the user can:
 5. Let the Agent inspect the Repository without modifying it.
 6. Stop a running response and recover the conversation after reload.
 
-Guarded editing, isolated worktrees, tests, Issue write-back, and multi-agent
-coordination follow as explicit later tasks in the Agent MVP backlog.
+The implemented slice now extends through guarded editing, isolated worktrees,
+tests, Run review, Issue-backed Tasks, explicit GitLab origin status write-back,
+and restart-safe operational recovery. The complete end-to-end acceptance run
+is the next MVP work; multi-agent coordination remains later.
 
 ## Non-goals for the first Agent milestone
 

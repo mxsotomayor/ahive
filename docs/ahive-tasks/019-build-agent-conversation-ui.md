@@ -61,8 +61,12 @@ The follow-up UX pass keeps an active conversation mounted whenever background
 Agent-list hydration or other page rendering occurs. The production Codex CLI
 adapter consumes app-server `item/agentMessage/delta` notifications and sends
 cumulative assistant snapshots through SSE. The browser patches the active
-bubble in place instead of replacing the modal on every event, preserves manual
-scroll position, and shows an immediate working state before the first token.
+bubble in place instead of replacing the modal on every event and shows an
+immediate working state before the first token.
+The subsequent scroll pass removes smooth programmatic scrolling, preserves the
+mounted modal during background page renders, opens history directly at the
+bottom, and bottom-anchors every new streamed response update so the newest text
+remains visible.
 
 All 65 automated tests pass, including conversation empty/configured rendering,
 fixed context, Task controls, the SSE contract, durable two-turn Runs, and

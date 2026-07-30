@@ -6,7 +6,10 @@ import {
   createAgentTask,
   emptyNeutralStore,
   executeAgentTaskTurn,
+  getAgentTaskView,
+  getIssueAgentWorkView,
   listAgentTaskViews,
+  listLegacyIssueViews,
   listAgentRuns,
   listConversationMessages,
   NeutralStoreError,
@@ -142,6 +145,75 @@ test("propagates cancellation to a running provider turn without creating an ass
   }
 });
 
+test("projects one documented read-only Issue context without changing Issue identities", async () => {
+  const database = openDatabase(":memory:");
+  const store = createSqliteNeutralStore(database, "issue-agent-work-test");
+  const runtimeStatus = { status: "ready", installed: true, authenticated: true, version: "test" };
+  try {
+    await writeNeutralStore(store, fixtureStore());
+    const before = await readNeutralStore(store);
+    const issueBefore = structuredClone(before.issues.find(item => item.id === "issue-1"));
+    const linksBefore = structuredClone(before.externalIssueLinks);
+
+    const work = getIssueAgentWorkView(before, "issue-1", runtimeStatus);
+    assert.equal(work.issue.project.id, "project-1");
+    assert.equal(work.issue.product.id, "product-1");
+    assert.deepEqual(work.compatibleAssignments.map(item => item.id), ["assignment-1"]);
+    assert.deepEqual(work.issue.origin, {
+      productSourceId: "source-1",
+      provider: "gitlab",
+      displayName: "One",
+      externalIssueId: "1",
+      externalUrl: "https://gitlab.example.com/group/one/-/issues/1"
+    });
+
+    const created = await createAgentTask(store, {
+      agentAssignmentId: "assignment-1",
+      issueId: "issue-1",
+      objective: "Implement the linked Issue safely"
+    });
+    const afterCreate = await readNeutralStore(store);
+    assert.equal(created.task.issueId, "issue-1");
+    assert.equal(afterCreate.issues.length, before.issues.length);
+    assert.equal(afterCreate.externalIssueLinks.length, linksBefore.length);
+    assert.deepEqual(afterCreate.issues.find(item => item.id === "issue-1"), issueBefore);
+    assert.deepEqual(afterCreate.externalIssueLinks, linksBefore);
+
+    let prompt = "";
+    const result = await executeAgentTaskTurn(store, created.task.id, { message: "Start" }, {
+      runtimeStatus,
+      executor: async options => {
+        prompt = options.prompt;
+        return { status: "completed", threadId: "issue-thread", finalMessage: "Done", usage: null, toolEventTypes: [], errorCode: null };
+      }
+    });
+    assert.equal(result.run.status, "completed");
+    assert.match(prompt, /Linked Issue context \(read-only/);
+    assert.match(prompt, /Issue ID: issue-1/);
+    assert.match(prompt, /Title: One/);
+    assert.match(prompt, /Description: Confirm the new backoff behavior\./);
+    assert.match(prompt, /Status: todo/);
+    assert.match(prompt, /Priority: high/);
+    assert.match(prompt, /Due date: 2026-08-04/);
+    assert.match(prompt, /Labels: backend, reliability/);
+    assert.match(prompt, /Origin Source: gitlab · One · external Issue 1/);
+    assert.doesNotMatch(prompt, /must-not-send|GITLAB_TOKEN|providerGlobalId/);
+
+    const afterRun = await readNeutralStore(store);
+    assert.deepEqual(afterRun.issues.find(item => item.id === "issue-1"), issueBefore);
+    assert.deepEqual(afterRun.externalIssueLinks, linksBefore);
+    const view = getAgentTaskView(afterRun, created.task.id);
+    assert.equal(view.issueContext.id, "issue-1");
+    assert.equal(view.completedRunCount, 1);
+    assert.equal(view.latestRun.id, result.run.id);
+    const legacyIssue = listLegacyIssueViews(afterRun).find(item => item.maxwellIssueId === "issue-1");
+    assert.equal(legacyIssue.agentTasks.length, 1);
+    assert.equal(legacyIssue.agentTasks[0].completedRunCount, 1);
+  } finally {
+    database.close();
+  }
+});
+
 function fixtureStore() {
   return {
     ...emptyNeutralStore(),
@@ -153,19 +225,22 @@ function fixtureStore() {
     ],
     connectorAccounts: [{ id: "account-1", provider: "gitlab", displayName: "GitLab", baseUrl: "https://gitlab.example.com", credentialReference: "GITLAB_TOKEN", active: true, createdAt: now, updatedAt: now }],
     productSources: [
-      { id: "source-1", productId: "product-1", connectorAccountId: "account-1", provider: "gitlab", externalContainerId: "one", displayName: "One", active: true, createdAt: now, updatedAt: now },
+      { id: "source-1", productId: "product-1", connectorAccountId: "account-1", provider: "gitlab", externalContainerId: "one", displayName: "One", active: true, metadata: { secret: "must-not-send" }, createdAt: now, updatedAt: now },
       { id: "source-2", productId: "product-2", connectorAccountId: "account-1", provider: "gitlab", externalContainerId: "two", displayName: "Two", active: true, createdAt: now, updatedAt: now }
     ],
     issues: [
-      { id: "issue-1", productId: "product-1", originProductSourceId: "source-1", title: "One", status: "todo", createdAt: now, updatedAt: now },
+      { id: "issue-1", productId: "product-1", originProductSourceId: "source-1", title: "One", description: "Confirm the new backoff behavior.", status: "todo", priority: "high", dueDate: "2026-08-04", labels: ["backend", "reliability"], assigneeIdentity: { provider: "gitlab", username: "maxwell", displayName: "Maxwell" }, metadata: { secret: "must-not-send" }, createdAt: now, updatedAt: now },
       { id: "issue-2", productId: "product-2", originProductSourceId: "source-2", title: "Two", status: "todo", createdAt: now, updatedAt: now }
     ],
     externalIssueLinks: [
-      { id: "link-1", issueId: "issue-1", productSourceId: "source-1", role: "origin", externalIssueId: "1", createdAt: now, updatedAt: now },
+      { id: "link-1", issueId: "issue-1", productSourceId: "source-1", role: "origin", externalIssueId: "1", externalUrl: "https://gitlab.example.com/group/one/-/issues/1", metadata: { providerGlobalId: "must-not-send" }, createdAt: now, updatedAt: now },
       { id: "link-2", issueId: "issue-2", productSourceId: "source-2", role: "origin", externalIssueId: "2", createdAt: now, updatedAt: now }
     ],
     harnessAccounts: [{ id: "harness-1", provider: "openai", adapter: "codex-cli", displayName: "Local Codex", authMode: "codex_session", credentialReferences: {}, capabilities: ["codex_exec"], active: true, createdAt: now, updatedAt: now }],
     agentProfiles: [{ id: "profile-1", harnessAccountId: "harness-1", name: "Developer", description: null, traitDescription: null, instructions: null, model: "gpt-5.6-sol", modelSettings: {}, defaultToolPolicyId: null, active: true, createdAt: now, updatedAt: now }],
-    agentAssignments: [{ id: "assignment-1", agentProfileId: "profile-1", projectId: "project-1", productId: "product-1", repositoryId: null, contextInstructions: null, active: true, createdAt: now, updatedAt: now }]
+    agentAssignments: [
+      { id: "assignment-1", agentProfileId: "profile-1", projectId: "project-1", productId: "product-1", repositoryId: null, contextInstructions: null, active: true, createdAt: now, updatedAt: now },
+      { id: "assignment-2", agentProfileId: "profile-1", projectId: "project-1", productId: "product-2", repositoryId: null, contextInstructions: null, active: true, createdAt: now, updatedAt: now }
+    ]
   };
 }

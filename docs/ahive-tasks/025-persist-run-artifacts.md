@@ -1,6 +1,6 @@
 # 025: Persist Run Summaries and Artifacts
 
-Status: **Pending**  
+Status: **Complete**
 Depends on: **023, 024**
 
 ## Description
@@ -34,9 +34,22 @@ Make every code Run auditable and reviewable after completion or failure.
 
 ## Approval criteria
 
-- [ ] Every modifying Run exposes an exact changed-file summary.
-- [ ] Diff and test evidence remain available after restart.
-- [ ] Large payloads do not inflate primary database rows without bounds.
-- [ ] Artifact access requires a valid Run relationship.
-- [ ] Secret-like values are redacted from ordinary artifacts and logs.
+- [x] Every modifying Run exposes an exact changed-file summary.
+- [x] Diff and test evidence remain available after restart.
+- [x] Large payloads do not inflate primary database rows without bounds.
+- [x] Artifact access requires a valid Run relationship.
+- [x] Secret-like values are redacted from ordinary artifacts and logs.
 
+## Completion evidence
+
+Schema migration 12 adds Run Artifact metadata while content is stored outside
+primary rows in a private content-addressed directory. Artifacts are limited to
+1 MiB, 100 per Run, retained for a configured 1–365 days, SHA-256 verified on
+read, and sanitized for common credential patterns before persistence.
+
+Successful and failed Agent outcomes, exact changed-file summaries, worktree
+patches, and structured verification reports are materialized through
+Run-scoped services and `GET /api/agent-runs/:id/artifacts`. Artifact content
+reads require both the owning Run and Artifact ID. The API restart test proves
+that metadata, redacted content, review disposition, and integrity survive a
+server restart. The full regression suite passes all 77 tests.

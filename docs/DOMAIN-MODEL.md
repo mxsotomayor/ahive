@@ -60,6 +60,7 @@ local_path
 resolved_path?
 default_branch?
 access_mode             # read_only | guarded_write
+verification_commands[] # immutable exact-command policies
 verification_status     # unverified | verified | invalid
 verified_at?
 active
@@ -71,6 +72,11 @@ A Project may own multiple Repositories. The stored Repository identity, not a
 path supplied in a chat message or Run request, determines filesystem scope.
 Resolved paths and verification state are operational metadata; they never grant
 write permission by themselves.
+
+Each verification command policy stores a user-facing name, absolute executable,
+exact argument array, normalized worktree-relative directory, allowlisted
+non-secret environment values, timeout, and output limit. Its ID is derived from
+the complete policy content, so an edited command is a different approval target.
 
 ### Issue
 
@@ -373,6 +379,14 @@ Issue from the selected Product. An ad-hoc Task may omit Product and Issue when
 the Assignment permits Project-only work. A developer task requiring code may
 not start a repository Run without a Repository.
 
+An Issue-backed Task exposes a read-only Agent context projection containing
+only the neutral Issue ID, title, bounded description, status, priority, due
+date, bounded labels, assignee display identity, owning Project/Product, and
+origin provider/display name/external Issue ID/URL. Connector credentials, raw
+provider metadata, replica representations, and write authority are excluded.
+The projection is resolved from the existing Issue and links; it does not create
+or duplicate external identity.
+
 ### Conversation
 
 The visible, persistent discussion for one Agent Task.
@@ -440,15 +454,102 @@ target_type
 target_id
 reason
 risk_summary
+risk_level                # low | medium | high
+requested_by
 status                    # pending | approved | denied | expired | consumed |
                           # cancelled
 requested_at
-expires_at?
+expires_at
 decided_at?
+decided_by?
 consumed_at?
+consumed_by?
+cancelled_at?
+cancelled_by?
 ```
 
 Approvals are target-specific and cannot be inferred from Message content.
+
+### Managed Worktree
+
+A recoverable Git working directory owned by one Agent Run.
+
+```text
+id
+repository_id
+agent_task_id
+agent_run_id
+path
+root_path
+base_commit
+base_branch?
+status                    # creating | ready | retained | missing | failed |
+                          # discarded
+present
+dirty
+head?
+error_code?
+created_at
+updated_at
+inspected_at?
+retained_at?
+discarded_at?
+```
+
+The path is generated deterministically under `AHIVE_WORKTREE_ROOT`; requests
+cannot provide it. Only one `creating` or `ready` worktree may hold a
+Repository's modification lock. Retained and missing records remain durable
+for recovery and review. Discard is an explicit, confirmed terminal action.
+
+### File Change Event
+
+Durable evidence for one authorized guarded-write tool call.
+
+```text
+id
+managed_worktree_id
+agent_run_id
+sequence
+operation                 # apply_patch | create_file
+relative_path
+before_sha256?
+after_sha256
+before_bytes
+after_bytes
+status                    # authorized | completed | failed
+error_code?
+created_at
+updated_at
+completed_at?
+failed_at?
+```
+
+Authorization consumes one exact `repository.modify_files` Approval Request
+targeting `<managed-worktree-id>:<relative-path>`. Events contain hashes and
+counts, never file content. One Run is limited to 20 distinct changed paths and
+50 total guarded-write calls.
+
+### Verification Command Policy and Result
+
+A Repository may define up to 20 verification policies:
+
+```text
+id                         # SHA-256-derived from the complete policy
+name
+executable                 # absolute; no shell interpreter or shell script
+args[]                     # exact, never supplied by the model
+working_directory          # normalized path relative to the managed worktree
+environment                # CI, NODE_ENV, TZ, NO_COLOR, FORCE_COLOR only
+timeout_ms                 # 1,000-300,000
+max_output_bytes           # 1,024-262,144
+```
+
+Execution consumes one exact `repository.run_verification` Approval Request
+targeting `<managed-worktree-id>:<verification-command-policy-id>`. The process
+always starts inside the owning ready worktree with no shell. Its structured
+result distinguishes `passed`, `failed`, `timed_out`, `cancelled`, and
+`launch_error`, and includes bounded redacted stdout/stderr. Every completed
+execution is persisted as a durable `test_report` Run Artifact.
 
 ### Run Artifact
 
@@ -469,6 +570,39 @@ metadata
 Large content is stored outside primary rows behind a bounded private artifact
 store. Artifacts exclude credentials and hidden reasoning.
 
+### Issue Write-back
+
+Durable evidence for one proposed status transition on an Issue origin.
+
+```text
+id
+agent_run_id
+agent_task_id
+issue_id
+external_issue_link_id
+product_source_id
+approval_request_id
+provider
+previous_status
+requested_status
+target_id
+status                    # awaiting_approval | approved | denied | expired |
+                          # cancelled | executing | succeeded | failed
+attempt_count
+upstream_state?
+error_code?
+error_message?
+created_at
+updated_at
+attempted_at?
+completed_at?
+```
+
+The associated Approval Request uses `external.issue.write` and one exact
+`<external-link-id>:status:<requested-status>` target. It preserves the
+completed Run's outcome while the separate external action is decided and
+executed.
+
 ## Agent relationships
 
 ```text
@@ -479,7 +613,10 @@ Agent Assignment 1 --- * Agent Task
 Agent Task    1 --- 1 Conversation 1 --- * Message
 Agent Task    1 --- * Agent Run
 Agent Run     1 --- * Approval Request
+Agent Run     1 --- 0..1 Managed Worktree
+Managed Worktree 1 --- * File Change Event
 Agent Run     1 --- * Run Artifact
+Agent Run     1 --- * Issue Write-back * --- 1 Approval Request
 Agent Task    * --- 0..1 Issue
 ```
 
@@ -503,6 +640,10 @@ Agent Task    * --- 0..1 Issue
 5. Discuss the objective in its Conversation.
 6. Create bounded Runs; protected capabilities require separate approvals.
 7. Keep Issue write-back separate from Run completion.
+8. After a successful Run, optionally preview the authoritative origin status
+   transition, request and decide an exact approval, then execute it once.
+9. Persist success, denial, expiry, cancellation, or upstream failure without
+   rewriting the completed Run outcome.
 
 ## Agent lifecycle constraints
 

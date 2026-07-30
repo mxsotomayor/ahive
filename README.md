@@ -6,8 +6,11 @@ Project, Product, Issue, and approved local-repository context to help the user
 perform development work safely.
 
 The current runtime combines the Maxwell issue-management UI with Ahive's
-transactional workspace and verified Repository API. Agent execution behavior
-is still planned and must not be inferred from the new product direction.
+transactional workspace, verified Repository API, Codex CLI conversations,
+approval-gated isolated repository work, durable Run evidence, a full-screen
+Run review drawer, explicit approval-gated GitLab Issue status write-back, and
+restart-safe Run recovery with sanitized local health metrics. Automatic writes
+and replica propagation remain intentionally unavailable.
 
 The shared product and engineering specification is the source for scope,
 terminology, decisions, architecture, and feature status:
@@ -21,6 +24,7 @@ Key documents:
 - [Domain model](docs/DOMAIN-MODEL.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Features and roadmap](docs/FEATURES.md)
+- [FAQ](docs/FAQ.md)
 - [Decision records](docs/decisions/README.md)
 - [Agent implementation backlog](docs/ahive-tasks/README.md)
 
@@ -49,6 +53,7 @@ verification:
 
 ```dotenv
 AHIVE_REPOSITORY_ROOTS=E:\WORK;E:\TOOLS
+AHIVE_WORKTREE_ROOT=E:\AHIVE-WORKTREES
 ```
 
 The same operations remain available through the API: create with `POST
@@ -78,10 +83,22 @@ use **Stop** to cancel an active turn, and reopen a Task to reload its persisted
 transcript. Production conversations use `codex app-server` over local stdio so
 Agent message deltas reach the browser without a direct OpenAI REST call. The context
 sidebar always shows the Agent, Project, optional Product, Repository, and
-Issue. A Repository-scoped Run receives exactly four server-controlled tools:
-bounded file listing, literal text search, bounded text reads, and Git status/
-diff summaries. The built-in shell, file changes, tests, web access, binary
-content, and common secret files remain unavailable.
+Issue. The Agent Task surface fills the viewport. Repository-scoped Tasks add a
+lazy, read-only file tree on desktop and a **Files** drawer on narrow screens;
+selecting a safe text file previews up to 200 lines without exposing mutation
+controls. A Repository-scoped Run receives bounded file listing, literal text
+search, text reads, Git summaries, and verification-policy discovery. The
+built-in shell, arbitrary commands, web access, binary content, and common
+secret files remain unavailable.
+
+An existing Issue can now start the same flow directly. Open **My issues**,
+select an Issue, and choose **Work with agent**. Ahive offers only active Agent
+Assignments for that Issue's Product and shows the fixed Agent, Project,
+Product, and Repository before creation. The Task references the existing
+neutral Issue and receives its documented read-only context. The Issue drawer
+lists every linked Task and Run count; the conversation's **Issue** button
+navigates back, while **Review** opens completed Run evidence. None of these
+navigation or creation actions changes the Issue or its external links.
 
 Run the development server in a visible terminal to trace Agent work:
 
@@ -96,6 +113,57 @@ text, file contents, command strings, credentials, and hidden reasoning. The
 same bounded repository-tool activity is stored on the durable Agent Run.
 Streaming trace lines report only cumulative output character counts, not the
 assistant text itself.
+
+Durable Run Approval Requests are available through
+`/api/agent-runs/:id/approvals`. They are separate from chat and record one
+fixed capability, exact target, reason, risk, requester, decision actor, and an
+expiry of at most 24 hours. Approval consumption is internal and single-use;
+an Approval Request does not by itself expose a tool or imply broader command,
+Git, or external-system authority.
+
+Managed Git worktrees provide the isolated guarded-editing workspace.
+Creating one requires a consumed `repository.create_worktree` approval for the
+Run's stored Repository. Ahive generates the path under `AHIVE_WORKTREE_ROOT`,
+captures the base commit and branch, and never copies dirty base-checkout
+changes into the isolated worktree. Inspect and retain operations are
+non-destructive. Discard requires `confirmDiscard: true` plus the exact stored
+worktree path; startup reconciliation retains interrupted work instead of
+silently deleting it. This lifecycle is currently API-only; file changes use
+the separate exact-path permission described below.
+
+Guarded editing is now available at the service, API, and conditional MCP
+boundaries. `apply_patch` requires the current file SHA-256 plus 1–20 exact,
+unambiguous old/new text replacements; `create_file` uses exclusive creation
+inside an existing worktree directory. Each call requires its own approved
+`repository.modify_files` target in the form
+`<managed-worktree-id>:<relative-path>`. Durable File Change Events record
+paths, byte counts, and before/after hashes without source content. These tools
+are not added to ordinary read-only conversations. The Agent Task Review drawer
+exposes exact approval targets, guarded file-change evidence, and worktree
+retention/discard actions; commits, pushes, and base-checkout writes remain
+unavailable.
+
+Repository verification commands are configured through `GET`/`PUT
+/api/repositories/:id/verification-commands`. Each policy fixes an absolute
+non-shell executable, exact argument array, worktree-relative directory,
+allowlisted environment, timeout, and output limit. Changing any field creates
+a new content-addressed policy ID. Execution through `POST
+/api/agent-runs/:id/verifications/:policyId` or the conditional Repository MCP
+requires a single-use `repository.run_verification` approval targeting
+`<managed-worktree-id>:<policy-id>`. Commands run only in the ready managed
+worktree, without a shell, with bounded concurrency and process-tree
+cancellation. Results distinguish pass, fail, timeout, cancellation, and launch
+failure; stdout/stderr are bounded and redacted. Configuration remains API-based.
+Exact approval decisions and verification evidence are available in the Agent
+Task Review drawer.
+
+Run evidence is stored under `AHIVE_ARTIFACT_ROOT` (default
+`data/run-artifacts`) with a 1 MiB per-artifact limit, SHA-256 integrity checks,
+credential redaction, and a default 30-day retention timestamp. Open any Agent
+Task with at least one Run and select **Review** to inspect its timeline,
+approvals, worktree, changed files, test reports, patch/final/error artifacts,
+and review-only disposition. Accepting a Run records only the local review; it
+does not commit, push, publish, or update the linked Issue.
 
 The bounded CLI proof is reproducible with `pnpm spike:codex -- --live`. It is
 opt-in because it consumes a real Codex turn. See
