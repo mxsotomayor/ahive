@@ -1,6 +1,6 @@
 # 021: Add Durable Run Approvals
 
-Status: **Pending**  
+Status: **Complete**
 Depends on: **018**
 
 ## Description
@@ -36,9 +36,23 @@ ordinary conversation.
 
 ## Approval criteria
 
-- [ ] Approvals are separate from conversational consent.
-- [ ] Each approval names one capability and bounded target.
-- [ ] Expired, denied, or consumed approvals cannot be reused.
-- [ ] A waiting Run cannot proceed without an accepted approval.
-- [ ] Approval history remains visible after Run completion.
+- [x] Approvals are separate from conversational consent.
+- [x] Each approval names one capability and bounded target.
+- [x] Expired, denied, or consumed approvals cannot be reused.
+- [x] A waiting Run cannot proceed without an accepted approval.
+- [x] Approval history remains visible after Run completion.
 
+## Completion evidence
+
+Schema migration 9 persists Approval Requests independently from Messages and
+adds `waiting_approval` to the Agent Run lifecycle. Requests include a fixed
+capability, exact target type and ID, requester, reason, risk, and an expiry no
+more than 24 hours away. Approve, deny, cancel, list, and request APIs record
+actors and timestamps and emit sanitized console traces.
+
+The internal consumption boundary requires the approved capability and target
+to match exactly, rejects expiry and wrong-Run use, and consumes permission
+once before moving the Run back to `running`. No filesystem, command, Git, or
+external-system execution was added by this task. Service, persistence,
+migration, state-machine, and live HTTP API tests cover approval, denial,
+expiry, cancellation, replay, mismatched scope, and wrong-Run decisions.

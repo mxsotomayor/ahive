@@ -21,8 +21,20 @@ test("builds a constrained app-server invocation with only the Ahive Repository 
   assert.ok(args.includes('web_search="disabled"'));
   assert.ok(args.includes("mcp_servers={}"));
   assert.ok(args.some(value => value.includes("mcp_servers.ahive_repository.command")));
-  assert.ok(args.some(value => value.includes('enabled_tools=["list_files","search_text","read_text","git_summary"]')));
+  assert.ok(args.some(value => value.includes('enabled_tools=["list_files","search_text","read_text","git_summary","list_verification_commands"]')));
   assert.equal(args.join(" ").includes("danger-full-access"), false);
+
+  const guarded = buildCodexAppServerArgs({
+    repositoryTools: {
+      serverScript: "C:\\ahive\\server.mjs", databasePath: "C:\\ahive\\data.db",
+      repositoryId: "repository-1", repositoryRoots: ["C:\\work"],
+      auditPath: "C:\\ahive\\audit.jsonl", runId: "run-1",
+      worktreeRoot: "C:\\ahive\\worktrees", artifactRoot: "C:\\ahive\\artifacts", guardedWriteEnabled: true
+    }
+  });
+  assert.ok(guarded.some(value => value.includes("--worktree-root")));
+  assert.ok(guarded.some(value => value.includes('"apply_patch","create_file"')));
+  assert.equal(guarded.join(" ").includes("danger-full-access"), false);
 });
 
 test("streams cumulative visible Agent text from app-server deltas", async () => {

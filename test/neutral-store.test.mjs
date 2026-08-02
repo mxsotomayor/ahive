@@ -17,7 +17,7 @@ import {
 } from "../lib/neutral-store.mjs";
 
 const workspace = {
-  organizationName: "Zing Developers",
+  organizationName: "Rezzilla-Labs",
   projectName: "IRN",
   productName: "IRN",
   gitlabBaseUrl: "https://gitlab.example.com"
@@ -47,7 +47,7 @@ test("persists the Organization, Project, and Product hierarchy with matching na
   try {
     await initializeNeutralWorkspace(filePath, workspace);
     const store = await readNeutralStore(filePath);
-    assert.equal(store.organizations[0].name, "Zing Developers");
+    assert.equal(store.organizations[0].name, "Rezzilla-Labs");
     assert.equal(store.projects[0].name, "IRN");
     assert.equal(store.products[0].name, "IRN");
     assert.equal(store.projects[0].organizationId, store.organizations[0].id);
@@ -63,7 +63,7 @@ test("does not recreate seeded workspace entities after they are renamed", async
   const filePath = join(directory, "maxwell.json");
   try {
     const initialized = await initializeNeutralWorkspace(filePath, workspace);
-    await updateWorkspaceEntity(filePath, "organization", initialized.organization.id, { name: "Zing" });
+    await updateWorkspaceEntity(filePath, "organization", initialized.organization.id, { name: "Rezzilla" });
     await updateWorkspaceEntity(filePath, "project", initialized.project.id, { name: "IRN Delivery" });
     await updateWorkspaceEntity(filePath, "product", initialized.product.id, { name: "IRN Process Manager" });
 
@@ -72,7 +72,7 @@ test("does not recreate seeded workspace entities after they are renamed", async
     assert.equal(restarted.store.organizations.length, 1);
     assert.equal(restarted.store.projects.length, 1);
     assert.equal(restarted.store.products.length, 1);
-    assert.equal(restarted.organization.name, "Zing");
+    assert.equal(restarted.organization.name, "Rezzilla");
     assert.equal(restarted.project.name, "IRN Delivery");
     assert.equal(restarted.product.name, "IRN Process Manager");
   } finally {
@@ -87,7 +87,7 @@ test("imports GitLab issues as neutral Issues with Product Sources and origin li
     const imported = await importGitLabIssues(filePath, [
       gitlabIssue(),
       gitlabIssue({ projectId: 88, iid: 4, project: "irn/identity", title: "Verify citizen lookup" })
-    ], { viewer: "nuno", viewerName: "Nuno", syncedAt: "2026-07-18T11:00:00.000Z" }, workspace);
+    ], { viewer: "max", viewerName: "Max", syncedAt: "2026-07-18T11:00:00.000Z" }, workspace);
 
     assert.equal(imported.created, 2);
     assert.equal(imported.store.organizations.length, 1);
@@ -217,7 +217,7 @@ test("stores Google OAuth references on the account and sheet location on the Pr
     const store = await readNeutralStore(filePath);
     const account = await createWorkspaceEntity(filePath, "connectorAccount", {
       provider: "sheets",
-      displayName: "Google Sheets - Zing",
+      displayName: "Google Sheets - Rezzilla",
       clientIdReference: "GOOGLE_CLIENT_ID",
       clientSecretReference: "GOOGLE_CLIENT_SECRET",
       refreshTokenReference: "GOOGLE_REFRESH_TOKEN"
@@ -225,7 +225,7 @@ test("stores Google OAuth references on the account and sheet location on the Pr
     const source = await createWorkspaceEntity(filePath, "productSource", {
       productId: store.products[0].id,
       connectorAccountId: account.entity.id,
-      displayName: "Zing Tasks",
+      displayName: "Rezzilla Tasks",
       externalContainerId: "spreadsheet_123",
       sheetTab: "Assigned Tasks",
       range: "'Assigned Tasks'!A:H"
@@ -272,7 +272,7 @@ test("removes an unused Product Source without affecting its Product or Connecto
     const initialized = await initializeNeutralWorkspace(filePath, workspace);
     const account = await createWorkspaceEntity(filePath, "connectorAccount", {
       provider: "github",
-      displayName: "GitHub - Zing",
+      displayName: "GitHub - Rezzilla",
       baseUrl: "https://github.com",
       credentialReference: "GITHUB_TOKEN"
     });
@@ -281,7 +281,7 @@ test("removes an unused Product Source without affecting its Product or Connecto
       connectorAccountId: account.entity.id,
       displayName: "IRN GitHub Project",
       externalContainerId: "28",
-      externalUrl: "https://github.com/orgs/Zing-Developers/projects/28"
+      externalUrl: "https://github.com/orgs/Rezzilla-Labs/projects/28"
     });
 
     const removed = await removeProductSource(filePath, source.entity.id);

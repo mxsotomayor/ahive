@@ -19,6 +19,9 @@ what already works, what remains, and why important decisions were made.
    repository-root configuration.
 9. [Codex Harness spike](CODEX-HARNESS-SPIKE.md) - accepted CLI process,
    streaming, redaction, continuation, cancellation, and Windows findings.
+10. [FAQ](FAQ.md) - durable answers to common product and behavior questions.
+11. [Configuration errors](TROUBLESHOOTING.md) - known configuration failures
+    and their fixes.
 
 ## Current model at a glance
 
@@ -38,9 +41,11 @@ Project context + optional Issue + registered Repository
                            `-> Agent Task -> Conversation -> supervised Run
 ```
 
-The Agent domain model, configuration, Tasks, and Conversations are persisted.
-Repository persistence and safe read-only inspection are implemented. The
-Codex CLI boundary is proven; production Agent Runs and execution UI are next.
+The Agent domain model, configuration, Tasks, Conversations, Runs, approvals,
+isolated worktrees, guarded changes, verification evidence, and bounded Run
+Artifacts are persisted. The full-screen conversation includes Repository and
+Run Review drawers, and existing Issues can start Product-compatible Agent
+Tasks without changing external identity.
 
 ## Document authority
 

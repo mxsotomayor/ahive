@@ -20,7 +20,9 @@ const icons = {
   clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   arrow: '<svg viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>',
   layers: '<svg viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></svg>',
-  agent: '<svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="4"/><path d="M12 3v4M8 12h.01M16 12h.01M8 16h8"/></svg>'
+  agent: '<svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="4"/><path d="M12 3v4M8 12h.01M16 12h.01M8 16h8"/></svg>',
+  folder: '<svg viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6Z"/></svg>',
+  file: '<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6V3Z"/><path d="M14 3v5h5"/></svg>'
 };
 
 const sourceInfo = {
@@ -47,6 +49,7 @@ const state = {
   agents: null,
   agentsError: null,
   agentsLoading: true,
+  operationalHealth: null,
   agentConversation: null,
   mobileNavOpen: false,
   repositoryActions: {},
@@ -121,7 +124,7 @@ function layout(content) {
           <button class="nav-item" data-toast="Notifications are all caught up">${icon("bell")}<span>Notifications</span><span class="notification-dot"></span></button>
           <button class="nav-item" data-toast="Settings will be added with authentication">${icon("settings")}<span>Settings</span></button>
         </nav>
-        <div class="profile"><span class="avatar">NM</span><div><strong>Nuno Monteiro</strong><small>Workspace owner</small></div><button aria-label="Profile options">•••</button></div>
+        <div class="profile"><span class="avatar">NM</span><div><strong>Max. S.Ramos</strong><small>Workspace owner</small></div><button aria-label="Profile options">•••</button></div>
       </aside>
       <main class="main-content">${content}</main>
     </div>`;
@@ -139,7 +142,7 @@ function dashboardPage() {
   const prioritized = [...active].sort((a,b) => (a.due || "9999-12-31").localeCompare(b.due || "9999-12-31"));
   const focusIssue = prioritized[0];
   return layout(`
-    ${topbar("Good morning, Nuno", "Friday, July 17")}
+    ${topbar("Good morning, Max", "Friday, July 17")}
     <section class="content-wrap">
       <div class="intro-row"><div><span class="truth-badge">GitLab · Source of truth</span><h2>Your work, in one place.</h2><p>Pull from GitLab locally, then publish the canonical set to connected targets.</p></div><div class="sync-actions"><button class="sync-button" data-sync="gitlab">${icon("sync")} Refresh from GitLab</button><button class="primary-button compact-button" data-action="outbound-sync">${icon("arrow")} Sync to other sources</button></div></div>
       <section class="stats-grid" aria-label="Issue overview">
@@ -320,7 +323,7 @@ function workspaceEntityModal(type, entity = null, parentId = null) {
 }
 
 function workspaceEntityFields(type, entity, parentId) {
-  if (type === "organization") return `<label>Name<input name="name" required value="${clean(entity?.name || "")}" placeholder="Zing Developers" /></label><label>Organization type<select name="type">${optionList(["employer", "client", "partner", "institution"], entity?.type || "employer")}</select></label>`;
+  if (type === "organization") return `<label>Name<input name="name" required value="${clean(entity?.name || "")}" placeholder="RezzillaLabs" /></label><label>Organization type<select name="type">${optionList(["employer", "client", "partner", "institution"], entity?.type || "employer")}</select></label>`;
   if (type === "project") {
     const organizationId = entity?.organizationId || parentId || state.workspace.organizations[0]?.id;
     return `${entity ? readonlyParent("Organization", state.workspace.organizations.find(item => item.id === organizationId)?.name) : selectField("Organization", "organizationId", state.workspace.organizations, organizationId)}<label>Name<input name="name" required value="${clean(entity?.name || "")}" placeholder="IRN" /></label><div class="form-grid"><label>Key<input name="key" value="${clean(entity?.key || "")}" placeholder="irn" /></label></div><label>Description<textarea name="description" rows="3" placeholder="Optional context">${clean(entity?.description || "")}</textarea></label>`;
@@ -339,7 +342,7 @@ function workspaceEntityFields(type, entity, parentId) {
   if (type === "connectorAccount") {
     const provider = entity?.provider || "gitlab";
     const refs = entity?.credentialReferences || {};
-    return `<label>Provider${entity ? `<input value="${clean(sourceInfo[provider]?.label || provider)}" readonly /><input name="provider" type="hidden" value="${clean(provider)}" />` : `<select name="provider" data-provider-select>${optionList(["gitlab", "github", "openproject", "sheets", "excel"], provider, value => sourceInfo[value]?.label || value)}</select>`}</label><label>Account name<input name="displayName" required value="${clean(entity?.displayName || "")}" placeholder="Google Sheets · Zing" /></label><div data-provider-generic ${provider === "sheets" ? "hidden" : ""}><label>Base URL<input name="baseUrl" type="url" value="${clean(entity?.baseUrl || "")}" placeholder="https://gitlab.example.com" />${entity ? `<small>The URL can change only while this account has no Product Sources.</small>` : ""}</label><label>Credential environment variable<input name="credentialReference" value="${clean(entity?.credentialReference || "")}" placeholder="GITLAB_TOKEN" pattern="[A-Z][A-Z0-9_]*" /><small>Enter only the variable name. Put its secret value in <code>.env</code>.</small></label></div><div data-provider-sheets ${provider === "sheets" ? "" : "hidden"}><label>OAuth client ID variable<input name="clientIdReference" value="${clean(refs.clientId || "GOOGLE_CLIENT_ID")}" pattern="[A-Z][A-Z0-9_]*" /></label><label>OAuth client secret variable<input name="clientSecretReference" value="${clean(refs.clientSecret || "GOOGLE_CLIENT_SECRET")}" pattern="[A-Z][A-Z0-9_]*" /></label><label>Optional refresh token variable<input name="refreshTokenReference" value="${clean(refs.refreshToken || "GOOGLE_REFRESH_TOKEN")}" pattern="[A-Z][A-Z0-9_]*" /><small>Normally Maxwell stores the refresh token locally after you authorize Google. Secret values are never stored in the workspace.</small></label></div>`;
+    return `<label>Provider${entity ? `<input value="${clean(sourceInfo[provider]?.label || provider)}" readonly /><input name="provider" type="hidden" value="${clean(provider)}" />` : `<select name="provider" data-provider-select>${optionList(["gitlab", "github", "openproject", "sheets", "excel"], provider, value => sourceInfo[value]?.label || value)}</select>`}</label><label>Account name<input name="displayName" required value="${clean(entity?.displayName || "")}" placeholder="Google Sheets · Rezzilla, Labs" /></label><div data-provider-generic ${provider === "sheets" ? "hidden" : ""}><label>Base URL<input name="baseUrl" type="url" value="${clean(entity?.baseUrl || "")}" placeholder="https://gitlab.example.com" />${entity ? `<small>The URL can change only while this account has no Product Sources.</small>` : ""}</label><label>Credential environment variable<input name="credentialReference" value="${clean(entity?.credentialReference || "")}" placeholder="GITLAB_TOKEN" pattern="[A-Z][A-Z0-9_]*" /><small>Enter only the variable name. Put its secret value in <code>.env</code>.</small></label></div><div data-provider-sheets ${provider === "sheets" ? "" : "hidden"}><label>OAuth client ID variable<input name="clientIdReference" value="${clean(refs.clientId || "GOOGLE_CLIENT_ID")}" pattern="[A-Z][A-Z0-9_]*" /></label><label>OAuth client secret variable<input name="clientSecretReference" value="${clean(refs.clientSecret || "GOOGLE_CLIENT_SECRET")}" pattern="[A-Z][A-Z0-9_]*" /></label><label>Optional refresh token variable<input name="refreshTokenReference" value="${clean(refs.refreshToken || "GOOGLE_REFRESH_TOKEN")}" pattern="[A-Z][A-Z0-9_]*" /><small>Normally Maxwell stores the refresh token locally after you authorize Google. Secret values are never stored in the workspace.</small></label></div>`;
   }
   if (type === "productSource") {
     const productId = entity?.productId || parentId || state.workspace.products[0]?.id;
@@ -357,7 +360,7 @@ function selectField(label, name, items, selectedId, displayField = "name") { re
 function optionList(values, selected, label = value => value[0].toUpperCase() + value.slice(1)) { return values.map(value => `<option value="${value}" ${value === selected ? "selected" : ""}>${clean(label(value))}</option>`).join(""); }
 
 function agentsPage() {
-  const subtitle = "Project-scoped conversations powered by your local Codex CLI";
+  const subtitle = "Project-scoped conversations powered by your local Agent CLI";
   if (state.agentsError) return layout(`${topbar("Agents", subtitle, false)}<section class="content-wrap"><div class="workspace-error"><h2>Agent configuration could not be loaded</h2><p>${clean(state.agentsError)}</p><button class="secondary-button" data-agents-refresh>${icon("sync")} Try again</button></div></section>`);
   if (state.agentsLoading || !state.agents || !state.workspace) return layout(`${topbar("Agents", subtitle, false)}<section class="content-wrap"><div class="workspace-loading">${icon("sync")} Loading Agent configuration...</div></section>`);
 
@@ -371,21 +374,22 @@ function agentsPage() {
   return layout(`
     ${topbar("Agents", subtitle, false)}
     <section class="content-wrap agents-page">
-      <div class="agents-hero"><div><span class="configuration-badge live">Codex CLI conversations</span><h2>Give your Agents focused work.</h2><p>Create a durable task inside an explicit Project context, then continue the conversation across multiple runs.</p></div><button class="primary-button compact-button" data-agent-task-create ${availableAssignments ? "" : "disabled"}>${icon("plus")} New Agent Task</button></div>
+      <div class="agents-hero"><div><span class="configuration-badge live">Local CLI conversations</span><h2>Give your Agents focused work.</h2><p>Create a durable task inside an explicit Project context, then continue the conversation across multiple runs.</p></div><button class="primary-button compact-button" data-agent-task-create ${availableAssignments ? "" : "disabled"}>${icon("plus")} New Agent Task</button></div>
+      ${operationalHealthPanel(state.operationalHealth)}
       <section class="agent-metrics" aria-label="Agent configuration overview">
         ${agentMetric("Harness ready", `${readyHarnesses}/${harnessAccounts.length || 0}`, readyHarnesses ? "ready" : "attention")}
         ${agentMetric("Agent Tasks", agentTasks.length, agentTasks.length ? "ready" : "neutral")}
         ${agentMetric("Assignments available", `${availableAssignments}/${agentAssignments.length || 0}`, availableAssignments ? "ready" : "neutral")}
       </section>
 
-      <div class="workspace-section-heading agent-section-heading"><div><span class="entity-kind">Conversations</span><h2>Agent Tasks</h2><p>Task history and assistant replies are persisted locally. Runs use the selected Assignment and your existing Codex login.</p></div><button class="secondary-button" data-agent-task-create ${availableAssignments ? "" : "disabled"}>${icon("plus")} Create Task</button></div>
+      <div class="workspace-section-heading agent-section-heading"><div><span class="entity-kind">Conversations</span><h2>Agent Tasks</h2><p>Task history and assistant replies are persisted locally. Runs use the selected Assignment and its local CLI login.</p></div><button class="secondary-button" data-agent-task-create ${availableAssignments ? "" : "disabled"}>${icon("plus")} Create Task</button></div>
       <section class="agent-task-list">
         ${agentTasks.length ? agentTasks.map(agentTaskCard).join("") : agentTaskEmpty(availableAssignments)}
       </section>
 
-      <div class="workspace-section-heading agent-section-heading"><div><span class="entity-kind">Execution environment</span><h2>Codex CLI Harness</h2><p>Uses the existing local Codex login. Ahive stores no OpenAI API key.</p></div>${harnessAccounts.length ? "" : `<button class="secondary-button" data-agent-create="harnessAccount">${icon("plus")} Configure Harness</button>`}</div>
+      <div class="workspace-section-heading agent-section-heading"><div><span class="entity-kind">Execution environment</span><h2>Agent CLI Harnesses</h2><p>Codex and OpenCode each keep their own local credentials; Ahive stores no provider API keys.</p></div><button class="secondary-button" data-agent-create="harnessAccount">${icon("plus")} Add Harness</button></div>
       <section class="harness-grid">
-        ${harnessAccounts.length ? harnessAccounts.map(harnessAccountCard).join("") : agentEmpty("No Harness configured", "Configure the local Codex CLI before creating Agent Profiles.", "harnessAccount", "Configure Codex CLI")}
+        ${harnessAccounts.length ? harnessAccounts.map(harnessAccountCard).join("") : agentEmpty("No Harness configured", "Configure a local Codex or OpenCode CLI before creating Agent Profiles.", "harnessAccount", "Configure Harness")}
       </section>
 
       <div class="workspace-section-heading agent-section-heading"><div><span class="entity-kind">Reusable behavior</span><h2>Agent Profiles</h2><p>Description, traits, instructions, model, and default policy stay independent of Projects.</p></div><button class="secondary-button" data-agent-create="agentProfile" ${hasActiveHarness ? "" : "disabled"}>${icon("plus")} Add Profile</button></div>
@@ -397,7 +401,7 @@ function agentsPage() {
       <section class="assignment-list">
         ${agentAssignments.length ? agentAssignments.map(agentAssignmentCard).join("") : agentEmpty("No Project Assignments", hasActiveProfile && hasActiveProject ? "Assign a Profile to a Project and optionally narrow Product or Repository context." : "Create or activate an Agent Profile and Project before assigning context.", hasActiveProfile && hasActiveProject ? "agentAssignment" : null, "Create Assignment")}
       </section>
-      <aside class="execution-notice">${icon("bolt")}<div><strong>Constrained read-only execution</strong><p>Repository-scoped Runs may list, search, and read safe text or inspect Git summaries. Shell commands, secrets, file changes, tests, network access, and approvals remain disabled.</p></div></aside>
+      <aside class="execution-notice">${icon("bolt")}<div><strong>Read by default, guarded when approved</strong><p>Repository-scoped Runs can inspect bounded files and Git metadata. Isolated file changes and configured verification commands require exact, single-use approvals and remain reviewable before any later Git action.</p></div></aside>
     </section>`);
 }
 
@@ -405,16 +409,33 @@ function agentMetric(label, value, tone) {
   return `<article class="${tone}"><strong>${clean(value)}</strong><span>${clean(label)}</span></article>`;
 }
 
+function operationalHealthPanel(health) {
+  if (!health) return `<aside class="operational-health loading">${icon("sync")}<div><strong>Operational status unavailable</strong><p>Refresh Agents to load local recovery diagnostics.</p></div></aside>`;
+  const recovery = health.recovery || {};
+  const attention = Number(recovery.unacknowledgedRuns || 0) + Number(recovery.staleWorktreeLocks || 0) + Number(recovery.uncertainWritebacks || 0);
+  const title = health.status === "healthy" ? "Agent runtime healthy" : health.status === "unhealthy" ? "Unsafe in-flight state detected" : "Recovery attention required";
+  const detail = health.status === "healthy" ? `No active recovery items · ${health.totals?.runs || 0} Runs observed` : `${recovery.unacknowledgedRuns || 0} interrupted · ${recovery.staleWorktreeLocks || 0} stale locks · ${recovery.uncertainWritebacks || 0} uncertain writes`;
+  return `<aside class="operational-health ${clean(health.status)}"><span class="health-indicator"></span><div><span class="entity-kind">Local operations</span><strong>${clean(title)}</strong><p>${clean(detail)}. Automatic replays: ${clean(recovery.automaticReplays || 0)}.</p></div><div class="operational-health-actions"><span>${attention ? `${attention} need attention` : "Ready"}</span><button class="secondary-button" data-operations-reconcile>${icon("sync")} Reconcile now</button></div></aside>`;
+}
+
 function harnessAccountCard(account) {
   const readiness = harnessReadiness(account);
-  return `<article class="harness-card ${account.active ? "" : "inactive"}"><div class="harness-symbol">CX</div><div class="harness-copy"><span class="entity-kind">OpenAI · Codex CLI</span><h3>${clean(account.displayName)}</h3><p>Cached Codex session · ${clean(account.configuration?.version ? `CLI ${account.configuration.version}` : "CLI version unavailable")}</p><div class="capability-list">${(account.capabilities || []).map(capability => `<span>${clean(capability.replaceAll("_", " "))}</span>`).join("")}</div></div><span class="readiness-pill ${readiness.className}">${clean(readiness.label)}</span><div class="agent-card-actions"><button class="icon-button small" data-agent-edit="harnessAccount" data-entity-id="${clean(account.id)}" aria-label="Edit ${clean(account.displayName)}">${icon("settings")}</button><button class="icon-button small danger-button" data-agent-remove="harnessAccount" data-entity-id="${clean(account.id)}" aria-label="Remove ${clean(account.displayName)}">${icon("trash")}</button></div><p class="readiness-detail">${clean(readiness.detail)}</p></article>`;
+  const harness = harnessInfo(account.provider);
+  return `<article class="harness-card ${account.active ? "" : "inactive"}"><div class="harness-symbol">${harness.symbol}</div><div class="harness-copy"><span class="entity-kind">${clean(harness.label)} · ${clean(harness.adapterLabel)}</span><h3>${clean(account.displayName)}</h3><p>${clean(harness.sessionLabel)} · ${clean(account.configuration?.version ? `CLI ${account.configuration.version}` : "CLI version unavailable")}</p><div class="capability-list">${(account.capabilities || []).map(capability => `<span>${clean(capability.replaceAll("_", " "))}</span>`).join("")}</div></div><span class="readiness-pill ${readiness.className}">${clean(readiness.label)}</span><div class="agent-card-actions"><button class="icon-button small" data-agent-edit="harnessAccount" data-entity-id="${clean(account.id)}" aria-label="Edit ${clean(account.displayName)}">${icon("settings")}</button><button class="icon-button small danger-button" data-agent-remove="harnessAccount" data-entity-id="${clean(account.id)}" aria-label="Remove ${clean(account.displayName)}">${icon("trash")}</button></div><p class="readiness-detail">${clean(readiness.detail)}</p></article>`;
 }
 
 function harnessReadiness(account) {
+  const harness = harnessInfo(account.provider);
   if (!account.active) return { label: "Inactive", className: "inactive", detail: "Activate this Harness before Profiles can start new work." };
-  if (account.configuration?.status === "ready") return { label: "Ready", className: "ready", detail: "Codex CLI is installed and signed in." };
-  if (account.configuration?.status === "authentication_required") return { label: "Sign-in required", className: "attention", detail: "Run codex login locally, then refresh this page." };
-  return { label: "CLI unavailable", className: "error", detail: "Install Codex CLI or correct AHIVE_CODEX_EXECUTABLE, then refresh." };
+  if (account.configuration?.status === "ready") return { label: "Ready", className: "ready", detail: `${harness.adapterLabel} is installed and signed in.` };
+  if (account.configuration?.status === "authentication_required") return { label: "Sign-in required", className: "attention", detail: `Run ${harness.loginCommand} locally, then refresh this page.` };
+  return { label: "CLI unavailable", className: "error", detail: `Install ${harness.adapterLabel} or correct ${harness.executableVariable}, then refresh.` };
+}
+
+function harnessInfo(provider) {
+  return provider === "opencode"
+    ? { label: "OpenCode", adapter: "opencode-cli", adapterLabel: "OpenCode CLI", executableVariable: "AHIVE_OPENCODE_EXECUTABLE", loginCommand: "opencode auth login", sessionLabel: "OpenCode CLI credentials", symbol: "OC" }
+    : { label: "OpenAI", adapter: "codex-cli", adapterLabel: "Codex CLI", executableVariable: "AHIVE_CODEX_EXECUTABLE", loginCommand: "codex login", sessionLabel: "Cached Codex session", symbol: "CX" };
 }
 
 function agentProfileCard(profile) {
@@ -445,12 +466,26 @@ function agentTaskCard(task) {
   const assignment = state.agents.agentAssignments.find(item => item.id === task.agentAssignmentId);
   const context = assignment?.effectiveContext || {};
   const scope = [context.project?.name, context.product?.name].filter(Boolean).join(" · ") || "Unknown Project";
-  return `<article class="agent-task-card"><div class="task-status-line ${clean(task.status)}"></div><div class="task-main"><span class="entity-kind">${clean(context.agentProfile?.name || "Agent")} · ${clean(scope)}</span><h3>${clean(task.objective)}</h3><p>${task.messageCount} message${task.messageCount === 1 ? "" : "s"} · Updated ${clean(formatDateTime(task.updatedAt))}</p></div><span class="task-status ${clean(task.status)}">${clean(runStatusLabel(task.status))}</span><button class="secondary-button" data-agent-task-open="${clean(task.id)}">Open conversation ${icon("arrow")}</button></article>`;
+  const recovery = task.latestRun?.status === "interrupted" ? `<span class="recovery-chip">Recovery review</span>` : "";
+  return `<article class="agent-task-card"><div class="task-status-line ${clean(task.status)}"></div><div class="task-main"><span class="entity-kind">${clean(context.agentProfile?.name || "Agent")} · ${clean(scope)}</span><h3>${clean(task.objective)}</h3><p>${task.messageCount} message${task.messageCount === 1 ? "" : "s"} · Updated ${clean(formatDateTime(task.updatedAt))}</p></div>${recovery}<span class="task-status ${clean(task.status)}">${clean(runStatusLabel(task.status))}</span><button class="secondary-button" data-agent-task-open="${clean(task.id)}">Open conversation ${icon("arrow")}</button></article>`;
 }
 
-function agentTaskModal() {
-  const assignments = state.agents.agentAssignments.filter(assignment => assignment.canStartWork);
-  return `<div class="overlay visible" data-action="close-overlay"></div><div class="modal agent-modal visible" role="dialog" aria-modal="true" aria-labelledby="agent-task-modal-title"><header><div><p class="eyebrow">NEW CONVERSATION</p><h2 id="agent-task-modal-title">Create Agent Task</h2></div><button class="icon-button" data-action="close-overlay" aria-label="Close modal">${icon("close")}</button></header><form id="agent-task-form"><label>Agent Assignment<select name="agentAssignmentId" required data-task-assignment>${assignments.map(assignment => { const context = assignment.effectiveContext; const scope = [context.project?.name, context.product?.name].filter(Boolean).join(" · "); return `<option value="${clean(assignment.id)}">${clean(context.agentProfile?.name)} · ${clean(scope)}</option>`; }).join("")}</select><small>The Project context cannot change after this Task is created.</small></label><label>Objective<textarea name="objective" required maxlength="8000" rows="5" placeholder="Describe the outcome you want the Agent to help you reach"></textarea><small>Required. You can add details in later turns.</small></label><label>Related Issue (optional)<select name="issueId" data-task-issue><option value="">No related Issue</option></select><small>Only Issues from the Assignment Product are available.</small></label><label>Conversation title (optional)<input name="conversationTitle" maxlength="160" placeholder="A short label for this conversation" /></label><div class="modal-footer"><p>Creating the Task does not contact Codex until you send a message.</p><div><button type="button" class="ghost-button" data-action="close-overlay">Cancel</button><button class="primary-button" type="submit">${icon("plus")} Create and open</button></div></div></form></div>`;
+function agentTaskModal(options = {}) {
+  const issue = options.issue || null;
+  const assignments = options.assignments || state.agents.agentAssignments.filter(assignment => assignment.canStartWork);
+  const objective = issue ? `Resolve Issue: ${issue.title}` : "";
+  const conversationTitle = issue ? `${issue.origin?.provider ? `${issue.origin.provider.toUpperCase()} ${issue.origin.externalIssueId} · ` : ""}${issue.title}`.slice(0, 160) : "";
+  return `<div class="overlay visible" data-action="close-overlay"></div><div class="modal agent-modal visible issue-agent-modal" role="dialog" aria-modal="true" aria-labelledby="agent-task-modal-title"><header><div><p class="eyebrow">${issue ? "ISSUE TO AGENT" : "NEW CONVERSATION"}</p><h2 id="agent-task-modal-title">${issue ? "Work with an agent" : "Create Agent Task"}</h2></div><button class="icon-button" data-action="close-overlay" aria-label="Close modal">${icon("close")}</button></header><form id="agent-task-form">${issue ? issueTaskContextCard(issue) : ""}<label>Agent Assignment<select name="agentAssignmentId" required data-task-assignment>${assignments.map(agentTaskAssignmentOption).join("")}</select><small>Choose a configured Agent and its fixed Project, Product, and optional Repository scope.</small></label><div class="task-assignment-context" data-task-assignment-context></div><label>Objective<textarea name="objective" required maxlength="8000" rows="5" placeholder="Describe the outcome you want the Agent to help you reach">${clean(objective)}</textarea><small>The Agent receives this objective plus the linked Issue's documented read-only context.</small></label>${issue ? `<input type="hidden" name="issueId" value="${clean(issue.id)}" />` : `<label>Related Issue (optional)<select name="issueId" data-task-issue><option value="">No related Issue</option></select><small>Only Issues from the Assignment Product are available.</small></label>`}<label>Conversation title (optional)<input name="conversationTitle" maxlength="160" value="${clean(conversationTitle)}" placeholder="A short label for this conversation" /></label><div class="modal-footer"><p>Creating the Task does not contact Codex or change the Issue.</p><div><button type="button" class="ghost-button" data-action="close-overlay">Cancel</button><button class="primary-button" type="submit">${icon("agent")} Create and open</button></div></div></form></div>`;
+}
+
+function agentTaskAssignmentOption(assignment) {
+  const context = assignment.effectiveContext || {};
+  const scope = [context.project?.name, context.product?.name, context.repository?.name || "No Repository"].filter(Boolean).join(" · ");
+  return `<option value="${clean(assignment.id)}">${clean(context.agentProfile?.name || "Agent")} · ${clean(scope)}</option>`;
+}
+
+function issueTaskContextCard(issue) {
+  return `<section class="issue-task-context"><header><span>${sourceBadge(issue.origin?.provider || "manual", true)}</span><div><small>Linked Issue · read only</small><strong>${clean(issue.title)}</strong></div></header><dl><div><dt>Project</dt><dd>${clean(issue.project?.name || "Unknown")}</dd></div><div><dt>Product</dt><dd>${clean(issue.product?.name || "Unknown")}</dd></div><div><dt>Status</dt><dd>${clean(statusLabel(issue.status) || issue.status)}</dd></div><div><dt>Origin</dt><dd>${clean(issue.origin ? `${issue.origin.displayName} #${issue.origin.externalIssueId}` : "Unavailable")}</dd></div></dl><p>${clean(issue.description || "No Issue description provided.")}</p></section>`;
 }
 
 function agentConversationModal() {
@@ -461,17 +496,20 @@ function agentConversationModal() {
   const task = value.task;
   const assignment = state.agents.agentAssignments.find(item => item.id === task.agentAssignmentId);
   const context = assignment?.effectiveContext || {};
-  const issue = task.issueId ? state.workspace.issues.find(item => item.id === task.issueId) : null;
+  const taskRepository = task.repositoryId ? state.workspace.repositories.find(item => item.id === task.repositoryId) : null;
+  const repositoryDetail = !context.repository ? "No repository configured" : taskRepository?.accessMode === "guarded_write" ? "Guarded work available with exact approvals" : "Read-only inspection tools enabled";
+  const issue = task.issueContext || (task.issueId ? state.workspace.issues.find(item => item.id === task.issueId) : null);
   const running = ["running", "queued", "cancelling", "reconnecting"].includes(value.runStatus);
   const latestRun = value.runs.at(-1);
-  const visibleError = value.error || (["failed", "cancelled"].includes(latestRun?.status) ? runErrorCopy(latestRun) : "");
-  return `<div class="overlay visible" data-action="close-overlay"></div><div class="modal conversation-modal visible" role="dialog" aria-modal="true" aria-labelledby="conversation-title"><header><div><p class="eyebrow">AGENT TASK</p><h2 id="conversation-title">${clean(task.conversation?.title || task.objective)}</h2><p>${clean(task.objective)}</p></div><div class="conversation-header-actions"><span class="task-status ${clean(value.runStatus || task.status)}" data-run-status>${clean(runStatusLabel(value.runStatus || task.status))}</span><button class="icon-button" data-action="close-overlay" aria-label="Close conversation">${icon("close")}</button></div></header><div class="conversation-layout"><main class="conversation-main"><div class="conversation-transcript" data-conversation-transcript aria-live="polite">${value.messages.length ? value.messages.map(conversationMessage).join("") : `<div class="conversation-empty">${icon("agent")}<h3>Ready for your first turn</h3><p>Send a message to start Codex CLI with this Task's fixed Project context.</p></div>`}${running ? conversationMessage({ role: "assistant", content: value.streamText, streaming: true }) : ""}</div>${visibleError ? `<div class="conversation-error" role="alert"><strong>${latestRun?.status === "cancelled" ? "Run stopped" : "Run did not complete"}</strong><span>${clean(visibleError)}</span></div>` : ""}<form id="agent-conversation-form" class="conversation-composer"><label for="agent-message">Message the Agent</label><textarea id="agent-message" name="message" required maxlength="8000" rows="3" placeholder="Add instructions or ask a follow-up…" ${running ? "disabled" : ""}></textarea><div><small><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to send · 8,000 character limit</small>${running ? `<button class="danger-outline-button" type="button" data-agent-run-cancel ${value.runStatus === "cancelling" ? "disabled" : ""}>${icon("close")} <span data-cancel-label>${value.runStatus === "cancelling" ? "Stopping…" : "Stop"}</span></button>` : `<button class="primary-button" type="submit">${icon("arrow")} ${latestRun?.status === "failed" ? "Retry" : "Send"}</button>`}</div></form></main><aside class="conversation-context"><span class="entity-kind">Fixed Task context</span>${contextItem("Agent", context.agentProfile?.name, context.agentProfile?.model)}${contextItem("Project", context.project?.name, "Always applied")}${contextItem("Product", context.product?.name, context.product ? "Assignment scope" : "Project-wide")}${contextItem("Repository", context.repository?.name, context.repository ? "Read-only inspection tools enabled" : "No repository configured")}${contextItem("Issue", issue?.title, issue ? issue.status || "Linked" : "No Issue linked")}<div class="context-safety-note">${icon("bolt")}<p>Repository tools can list, search, and read bounded safe text. Shell commands, secrets, file changes, tests, and network access stay blocked.</p></div></aside></div></div>`;
+  const visibleError = value.error || (["failed", "cancelled", "interrupted"].includes(latestRun?.status) ? runErrorCopy(latestRun) : "");
+  const errorTitle = latestRun?.status === "cancelled" ? "Run stopped" : latestRun?.status === "interrupted" ? "Run interrupted" : "Run did not complete";
+  return `<div class="overlay visible" data-action="close-overlay"></div><div class="modal conversation-modal visible" role="dialog" aria-modal="true" aria-labelledby="conversation-title"><header><div><p class="eyebrow">AGENT TASK</p><h2 id="conversation-title">${clean(task.conversation?.title || task.objective)}</h2><p>${clean(task.objective)}</p></div><div class="conversation-header-actions"><span class="task-status ${clean(value.runStatus || task.status)}" data-run-status>${clean(runStatusLabel(value.runStatus || task.status))}</span><button class="icon-button" data-action="close-overlay" aria-label="Close conversation">${icon("close")}</button></div></header><div class="conversation-layout"><main class="conversation-main"><div class="conversation-transcript" data-conversation-transcript aria-live="polite">${value.messages.length ? value.messages.map(conversationMessage).join("") : `<div class="conversation-empty">${icon("agent")}<h3>Ready for your first turn</h3><p>Send a message to start Codex CLI with this Task's fixed Project context.</p></div>`}${running ? conversationMessage({ role: "assistant", content: value.streamText, streaming: true }) : ""}</div>${visibleError ? `<div class="conversation-error" role="alert"><strong>${errorTitle}</strong><span>${clean(visibleError)}</span></div>` : ""}<form id="agent-conversation-form" class="conversation-composer"><label for="agent-message">Message the Agent</label><textarea id="agent-message" name="message" required maxlength="8000" rows="3" placeholder="Add instructions or ask a follow-up…" ${running ? "disabled" : ""}></textarea><div><small><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to send · 8,000 character limit</small>${running ? `<button class="danger-outline-button" type="button" data-agent-run-cancel ${value.runStatus === "cancelling" ? "disabled" : ""}>${icon("close")} <span data-cancel-label>${value.runStatus === "cancelling" ? "Stopping…" : "Stop"}</span></button>` : `<button class="primary-button" type="submit">${icon("arrow")} ${["failed", "interrupted"].includes(latestRun?.status) ? "Retry" : "Send"}</button>`}</div></form></main><aside class="conversation-context"><span class="entity-kind">Fixed Task context</span>${contextItem("Agent", context.agentProfile?.name, context.agentProfile?.model)}${contextItem("Project", context.project?.name, "Always applied")}${contextItem("Product", context.product?.name, context.product ? "Assignment scope" : "Project-wide")}${contextItem("Repository", context.repository?.name, repositoryDetail)}${contextItem("Issue", issue?.title, issue ? `${statusLabel(issue.status) || issue.status}${issue.origin ? ` · ${issue.origin.provider} #${issue.origin.externalIssueId}` : ""}` : "No Issue linked")}<div class="context-safety-note">${icon("bolt")}<p>Linked Issue context is read-only. Shell and arbitrary commands stay blocked; review decisions never commit, push, or update an Issue.</p></div></aside></div></div>`;
 }
 
 function conversationMessage(message) {
   const role = message.role === "user" ? "You" : message.role === "assistant" ? "Agent" : "Notice";
   const streamAttributes = message.streaming ? ` data-stream-message aria-busy="true"` : "";
-  const content = message.streaming && !message.content ? "Codex is working…" : message.content;
+  const content = message.streaming && !message.content ? "Agent is working…" : message.content;
   return `<article class="conversation-message ${clean(message.role)} ${message.streaming ? "streaming" : ""}"${streamAttributes}><header><strong>${role}</strong>${message.streaming ? `<span data-stream-label>${message.content ? "Receiving response…" : "Working…"}</span>` : message.createdAt ? `<time>${clean(formatDateTime(message.createdAt))}</time>` : ""}</header><div class="conversation-message-body ${message.streaming && !message.content ? "placeholder" : ""}" ${message.streaming ? "data-stream-content" : ""}>${clean(content).replace(/\n/g, "<br>")}</div></article>`;
 }
 
@@ -480,13 +518,21 @@ function contextItem(label, value, detail) {
 }
 
 function runStatusLabel(status) {
-  return ({ draft: "Draft", queued: "Queued", running: "Running", reconnecting: "Reconnecting", cancelling: "Stopping", completed: "Completed", cancelled: "Cancelled", failed: "Failed" })[status] || "Ready";
+  return ({ draft: "Draft", queued: "Queued", running: "Running", waiting_approval: "Waiting approval", reconnecting: "Reconnecting", cancelling: "Stopping", completed: "Completed", cancelled: "Cancelled", failed: "Failed", interrupted: "Interrupted" })[status] || "Ready";
 }
 
 function runErrorCopy(run) {
-  if (run?.status === "cancelled") return "The active Codex process was cancelled. Your existing conversation is unchanged and you can send another turn.";
+  const harness = run?.harnessProvider === "opencode" ? "OpenCode CLI" : "Codex CLI";
+  if (run?.status === "cancelled") return `The active ${harness} process was cancelled. Your existing conversation is unchanged and you can send another turn.`;
+  if (run?.status === "interrupted") return run.recovery?.classification === "manual_review"
+    ? "The server restarted during protected work. No action was replayed; inspect the retained worktree and acknowledge the recovery before continuing."
+    : "The server restarted during this Run. No action was replayed; acknowledge the recovery and send a new turn when ready.";
   const reason = String(run?.errorSummary || "unknown_error").replaceAll("_", " ");
-  return `Codex CLI reported ${reason}. Check the Harness status, then retry this turn.`;
+  if (run?.errorSummary === "opencode_insufficient_balance") {
+    const transport = run?.model?.startsWith("opencode-go/") ? "OpenCode Go" : "OpenCode Zen";
+    return `${transport} has insufficient balance for ${run.model}. Select a funded ${transport} model or switch transports, then retry.`;
+  }
+  return `${harness} reported ${reason}. Check the Harness status, model access, and provider balance, then retry this turn.`;
 }
 
 function formatDateTime(value) {
@@ -502,15 +548,24 @@ function agentEntityModal(type, entity = null, parentId = null) {
 }
 
 function agentEntityFields(type, entity, parentId) {
-  if (type === "harnessAccount") return `<div class="form-grid"><label>Provider<input value="OpenAI" readonly /><input name="provider" type="hidden" value="openai" /></label><label>Adapter<input value="Codex CLI" readonly /><input name="adapter" type="hidden" value="codex-cli" /></label></div><label>Display name<input name="displayName" required value="${clean(entity?.displayName || "")}" placeholder="Local Codex" /></label><div class="form-note">Authentication is owned by the local Codex CLI. Use <code>codex login</code>; do not enter an API key here.</div>`;
+  if (type === "harnessAccount") {
+    const provider = entity?.provider || "openai";
+    const harness = harnessInfo(provider);
+    const providerField = entity
+      ? `<input value="${clean(harness.label)}" readonly /><input name="provider" type="hidden" value="${clean(provider)}" />`
+      : `<select name="provider" data-harness-provider><option value="openai">OpenAI</option><option value="opencode">OpenCode</option></select>`;
+    return `<div class="form-grid"><label>Provider${providerField}</label><label>Adapter<input value="${clean(harness.adapterLabel)}" readonly data-harness-adapter-label /><input name="adapter" type="hidden" value="${clean(harness.adapter)}" data-harness-adapter /></label></div><label>Display name<input name="displayName" required value="${clean(entity?.displayName || "")}" placeholder="${provider === "opencode" ? "Local OpenCode" : "Local Codex"}" /></label><div class="form-note" data-harness-auth-note>Authentication is owned by the local ${clean(harness.adapterLabel)}. Use <code>${clean(harness.loginCommand)}</code>; do not enter an API key here.</div>`;
+  }
   if (type === "agentProfile") {
     const harnessId = entity?.harnessAccountId || state.agents.harnessAccounts.find(account => account.active)?.id || state.agents.harnessAccounts[0]?.id;
+    const harness = state.agents.harnessAccounts.find(account => account.id === harnessId);
     const settings = entity?.modelSettings || {};
-    const models = state.agents.models || [];
+    const models = agentModelCatalog(harness?.provider);
     const modelId = entity?.model || models[0]?.id || "";
     const modelOptions = models.map(model => `<option value="${clean(model.id)}" ${model.id === modelId ? "selected" : ""}>${clean(model.label)} · ${clean(model.id)}</option>`).join("");
-    const modelDescription = models.find(model => model.id === modelId)?.description || "Select a current OpenAI model.";
-    return `${selectField("Harness Account", "harnessAccountId", state.agents.harnessAccounts, harnessId, "displayName")}<label>Name<input name="name" required value="${clean(entity?.name || "")}" placeholder="Careful maintainer" /></label><label>Description<textarea name="description" rows="2" placeholder="What this Agent is for">${clean(entity?.description || "")}</textarea></label><label>Trait description<textarea name="traitDescription" rows="2" placeholder="Working style and personality">${clean(entity?.traitDescription || "")}</textarea></label><label>Operational instructions<textarea name="instructions" rows="4" placeholder="How the Agent should approach its work">${clean(entity?.instructions || "")}</textarea></label><div class="form-grid"><label>OpenAI model<select name="model" required data-agent-model>${modelOptions}</select><small data-agent-model-description>${clean(modelDescription)}</small></label><label>Reasoning effort<select name="reasoningEffort"><option value="">Codex default</option>${optionList(["minimal", "low", "medium", "high", "xhigh", "ultra"], settings.reasoningEffort || "")}</select></label><label>Verbosity<select name="verbosity"><option value="">Codex default</option>${optionList(["low", "medium", "high"], settings.verbosity || "")}</select></label><label>Service tier<input name="serviceTier" value="${clean(settings.serviceTier || "")}" placeholder="Optional, e.g. fast" /></label></div><label>Default tool policy ID<input name="defaultToolPolicyId" value="${clean(entity?.defaultToolPolicyId || "")}" placeholder="Optional policy reference" /></label>`;
+    const modelDescription = models.find(model => model.id === modelId)?.description || "Select a supported model.";
+    const harnessOptions = state.agents.harnessAccounts.map(item => `<option value="${clean(item.id)}" ${item.id === harnessId ? "selected" : ""}>${clean(item.displayName)}${item.active ? "" : " (inactive)"}</option>`).join("");
+    return `<label>Harness Account<select name="harnessAccountId" required data-agent-harness-select>${harnessOptions}</select></label><label>Name<input name="name" required value="${clean(entity?.name || "")}" placeholder="Careful maintainer" /></label><label>Description<textarea name="description" rows="2" placeholder="What this Agent is for">${clean(entity?.description || "")}</textarea></label><label>Trait description<textarea name="traitDescription" rows="2" placeholder="Working style and personality">${clean(entity?.traitDescription || "")}</textarea></label><label>Operational instructions<textarea name="instructions" rows="4" placeholder="How the Agent should approach its work">${clean(entity?.instructions || "")}</textarea></label><div class="form-grid"><label>Model<select name="model" required data-agent-model>${modelOptions}</select><small data-agent-model-description>${clean(modelDescription)}</small></label><label>Reasoning effort<select name="reasoningEffort"><option value="">Codex default</option>${optionList(["minimal", "low", "medium", "high", "xhigh", "ultra"], settings.reasoningEffort || "")}</select></label><label>Verbosity<select name="verbosity"><option value="">Codex default</option>${optionList(["low", "medium", "high"], settings.verbosity || "")}</select></label><label>Service tier<input name="serviceTier" value="${clean(settings.serviceTier || "")}" placeholder="Optional, e.g. fast" /></label></div><label>Default tool policy ID<input name="defaultToolPolicyId" value="${clean(entity?.defaultToolPolicyId || "")}" placeholder="Optional policy reference" /></label>`;
   }
   const profileId = entity?.agentProfileId || parentId || state.agents.agentProfiles.find(profile => profile.active)?.id || state.agents.agentProfiles[0]?.id;
   const projectId = entity?.projectId || state.workspace.projects.find(project => project.active)?.id || state.workspace.projects[0]?.id;
@@ -556,15 +611,23 @@ function integrationsPageCanonical() {
 
 function issueDrawer(issue) {
   const info = sourceInfo[issue.source];
+  const agentTasks = issue.agentTasks || [];
+  const compatibleAssignments = state.agents?.agentAssignments?.filter(assignment => assignment.canStartWork && assignment.productId === issue.productId) || [];
   return `<div class="overlay visible" data-action="close-overlay"></div><aside class="drawer visible" role="dialog" aria-modal="true" aria-label="Issue details">
     <header><div>${sourceBadge(issue.source)}<span class="issue-key">${issue.id}</span></div><button class="icon-button" data-action="close-overlay" aria-label="Close details">${icon("close")}</button></header>
     <div class="drawer-body"><div class="drawer-title"><span class="priority-dot ${issue.priority}"></span><h2>${issue.title}</h2></div><p class="description">${issue.description}</p>
-      <div class="drawer-actions"><button class="primary-button ${issue.status === "done" ? "completed" : ""}" data-complete="${issue.id}">${icon("check")} ${issue.status === "done" ? "Completed" : "Mark as done"}</button>${issue.sourceUrl ? `<a class="secondary-button" href="${issue.sourceUrl}" target="_blank" rel="noreferrer">Open in ${info.label} ${icon("external")}</a>` : `<button class="secondary-button" data-toast="Source links will activate with real integrations">Open in ${info.label} ${icon("external")}</button>`}</div>
-      <section class="detail-section"><h3>Details</h3><dl><div><dt>Status</dt><dd><span class="status-pill ${issue.status}">${statusLabel(issue.status)}</span></dd></div><div><dt>Priority</dt><dd class="capitalize">${issue.priority}</dd></div><div><dt>Project</dt><dd>${issue.project}</dd></div><div><dt>Due date</dt><dd class="${daysFromNow(issue.due) < 0 && issue.status !== "done" ? "danger-text" : ""}">${issue.due ? new Date(`${issue.due}T12:00:00`).toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric" }) : "No due date"}</dd></div><div><dt>Assigned to</dt><dd><span class="mini-avatar">NM</span> Nuno Monteiro</dd></div></dl></section>
+      <div class="drawer-actions"><button class="primary-button" data-issue-work-agent="${clean(issue.maxwellIssueId || "")}" ${compatibleAssignments.length && issue.maxwellIssueId ? "" : "disabled"}>${icon("agent")} Work with agent</button><button class="secondary-button ${issue.status === "done" ? "completed" : ""}" data-complete="${issue.id}">${icon("check")} ${issue.status === "done" ? "Completed" : "Mark as done"}</button>${issue.sourceUrl ? `<a class="secondary-button" href="${issue.sourceUrl}" target="_blank" rel="noreferrer">Open in ${info.label} ${icon("external")}</a>` : `<button class="secondary-button" data-toast="Source links will activate with real integrations">Open in ${info.label} ${icon("external")}</button>`}</div>
+      <section class="detail-section"><h3>Details</h3><dl><div><dt>Status</dt><dd><span class="status-pill ${issue.status}">${statusLabel(issue.status)}</span></dd></div><div><dt>Priority</dt><dd class="capitalize">${issue.priority}</dd></div><div><dt>Project</dt><dd>${issue.project}</dd></div><div><dt>Due date</dt><dd class="${daysFromNow(issue.due) < 0 && issue.status !== "done" ? "danger-text" : ""}">${issue.due ? new Date(`${issue.due}T12:00:00`).toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric" }) : "No due date"}</dd></div><div><dt>Assigned to</dt><dd><span class="mini-avatar">NM</span>Max S.Ramos</dd></div></dl></section>
       <section class="detail-section"><h3>Labels</h3><div class="labels">${issue.labels.map(label => `<span>${label}</span>`).join("")}</div></section>
+      <section class="detail-section issue-agent-work"><div class="issue-agent-heading"><div><h3>Agent work</h3><p>Tasks remain linked to this Issue without changing its external identity.</p></div><b>${agentTasks.length}</b></div>${agentTasks.length ? `<div class="issue-agent-task-list">${agentTasks.map(issueAgentTaskCard).join("")}</div>` : `<div class="issue-agent-empty"><strong>No Agent Tasks yet</strong><p>${compatibleAssignments.length ? "Choose Work with agent to create the first linked Task." : "Configure an available Assignment for this Product to start Agent work."}</p></div>`}</section>
       <section class="source-trail"><span>${icon("sync")}</span><div><strong>${issue.source === "gitlab" ? "Canonical GitLab issue" : `Outbound copy in ${info.label}`}</strong><p>Last updated ${issue.updated}. ${issue.source === "gitlab" ? "GitLab is authoritative for this issue." : "Edit the linked GitLab issue to change canonical state."}</p></div></section>
     </div>
   </aside>`;
+}
+
+function issueAgentTaskCard(task) {
+  const runCopy = task.runCount ? `${task.completedRunCount} of ${task.runCount} Runs completed` : "No Runs yet";
+  return `<button class="issue-agent-task" type="button" data-issue-agent-task-open="${clean(task.id)}"><span class="task-status ${clean(task.status)}">${clean(runStatusLabel(task.status))}</span><strong>${clean(task.conversationTitle || task.objective)}</strong><small>${clean(runCopy)} · Updated ${clean(formatDateTime(task.updatedAt))}</small>${icon("chevron")}</button>`;
 }
 
 function addIssueModal() {
@@ -585,8 +648,10 @@ function render() {
   const app = document.getElementById("app");
   app.innerHTML = state.page === "dashboard" ? dashboardPage() : state.page === "issues" ? issuesPage() : state.page === "workspace" ? workspacePage() : state.page === "agents" ? agentsPage() : integrationsPageCanonical();
   bindEvents();
-  if (state.agentConversation) renderAgentConversation();
-  else document.getElementById("overlay-root").innerHTML = "";
+  const overlayRoot = document.getElementById("overlay-root");
+  if (state.agentConversation) {
+    if (!overlayRoot?.querySelector?.(".conversation-modal")) renderAgentConversation();
+  } else if (overlayRoot) overlayRoot.innerHTML = "";
 }
 
 function bindEvents() {
@@ -608,10 +673,11 @@ function bindEvents() {
   document.querySelectorAll("[data-google-connect]").forEach(button => button.addEventListener("click", () => { window.location.href = "/api/google/oauth/start"; }));
   document.querySelectorAll("[data-workspace-refresh]").forEach(button => button.addEventListener("click", hydrateWorkspace));
   document.querySelectorAll("[data-agents-refresh]").forEach(button => button.addEventListener("click", () => hydrateAgents({ showLoading: true })));
+  document.querySelectorAll("[data-operations-reconcile]").forEach(button => button.addEventListener("click", reconcileOperations));
   document.querySelectorAll("[data-agent-create]").forEach(button => button.addEventListener("click", () => openAgentModal(button.dataset.agentCreate, null, button.dataset.parentId)));
   document.querySelectorAll("[data-agent-edit]").forEach(button => button.addEventListener("click", () => openAgentModal(button.dataset.agentEdit, button.dataset.entityId)));
   document.querySelectorAll("[data-agent-remove]").forEach(button => button.addEventListener("click", () => removeAgentEntity(button.dataset.agentRemove, button.dataset.entityId)));
-  document.querySelectorAll("[data-agent-task-create]").forEach(button => button.addEventListener("click", openAgentTaskModal));
+  document.querySelectorAll("[data-agent-task-create]").forEach(button => button.addEventListener("click", () => openAgentTaskModal()));
   document.querySelectorAll("[data-agent-task-open]").forEach(button => button.addEventListener("click", () => openAgentConversation(button.dataset.agentTaskOpen)));
   document.querySelectorAll("[data-action='outbound-sync']").forEach(button => button.addEventListener("click", () => prepareOutboundSync(button)));
   document.querySelectorAll("[data-sync]").forEach(button => button.addEventListener("click", () => syncIssues(button.dataset.sync, button)));
@@ -632,14 +698,30 @@ function globalKeydown(event) {
   if (event.key === "Escape") closeOverlay();
 }
 function openIssue(id) { const issue = state.issues.find(item => item.id === id); if (issue) { document.getElementById("overlay-root").innerHTML = issueDrawer(issue); bindOverlayEvents(); } }
+function openLinkedIssue(issueId) {
+  const issue = state.issues.find(item => item.maxwellIssueId === issueId);
+  if (!issue) return toast("The linked Issue is not available in the current local Issue view.", "error");
+  closeOverlay();
+  state.page = "issues";
+  render();
+  openIssue(issue.id);
+}
 function openAddModal() { document.getElementById("overlay-root").innerHTML = addIssueModal(); bindOverlayEvents(); setTimeout(() => document.querySelector("[name='title']")?.focus(), 50); }
 function closeOverlay() {
   state.agentConversation?.eventSource?.close();
+  clearTimeout(state.agentConversation?.review?.pollTimer);
   state.agentConversation = null;
   document.getElementById("overlay-root").innerHTML = "";
 }
 function bindOverlayEvents() {
   document.querySelectorAll("[data-action='close-overlay']").forEach(button => button.addEventListener("click", closeOverlay));
+  document.querySelector(".conversation-header-actions [data-repository-explorer-toggle]")?.addEventListener("click", toggleRepositoryExplorer);
+  document.querySelector(".conversation-header-actions [data-run-review-toggle]")?.addEventListener("click", toggleRunReview);
+  bindRepositoryExplorerEvents(document.querySelector("[data-repository-explorer]"));
+  bindRunReviewEvents(document.querySelector("[data-run-review]"));
+  document.querySelectorAll("[data-issue-work-agent]").forEach(button => button.addEventListener("click", () => openAgentTaskModal(button.dataset.issueWorkAgent)));
+  document.querySelectorAll("[data-issue-agent-task-open]").forEach(button => button.addEventListener("click", () => openAgentConversation(button.dataset.issueAgentTaskOpen)));
+  document.querySelectorAll("[data-agent-task-issue-open]").forEach(button => button.addEventListener("click", () => openLinkedIssue(button.dataset.agentTaskIssueOpen)));
   document.querySelectorAll("#overlay-root [data-complete]").forEach(button => button.addEventListener("click", async () => { await toggleComplete(button.dataset.complete); openIssue(button.dataset.complete); }));
   document.querySelectorAll("#overlay-root [data-toast]").forEach(button => button.addEventListener("click", () => toast(button.dataset.toast)));
   const workspaceForm = document.getElementById("workspace-entity-form");
@@ -655,6 +737,10 @@ function bindOverlayEvents() {
     agentForm.addEventListener("submit", saveAgentEntity);
     const modelSelect = agentForm.querySelector("[data-agent-model]");
     modelSelect?.addEventListener("change", () => updateAgentModelDescription(agentForm, modelSelect.value));
+    const harnessProviderSelect = agentForm.querySelector("[data-harness-provider]");
+    harnessProviderSelect?.addEventListener("change", () => updateHarnessAccountFields(agentForm, harnessProviderSelect.value));
+    const harnessSelect = agentForm.querySelector("[data-agent-harness-select]");
+    harnessSelect?.addEventListener("change", () => updateAgentProfileModels(agentForm, harnessSelect.value));
     const projectSelect = agentForm.querySelector("[data-assignment-project]");
     if (projectSelect) {
       populateAssignmentScope(agentForm, projectSelect.value);
@@ -667,7 +753,11 @@ function bindOverlayEvents() {
     const assignmentSelect = taskForm.querySelector("[data-task-assignment]");
     if (assignmentSelect) {
       populateTaskIssues(taskForm, assignmentSelect.value);
-      assignmentSelect.addEventListener("change", () => populateTaskIssues(taskForm, assignmentSelect.value));
+      updateTaskAssignmentContext(taskForm, assignmentSelect.value);
+      assignmentSelect.addEventListener("change", () => {
+        populateTaskIssues(taskForm, assignmentSelect.value);
+        updateTaskAssignmentContext(taskForm, assignmentSelect.value);
+      });
     }
   }
   const conversationForm = document.getElementById("agent-conversation-form");
@@ -708,8 +798,31 @@ function bindOverlayEvents() {
 
 function updateAgentModelDescription(form, modelId) {
   const target = form.querySelector("[data-agent-model-description]");
-  const model = state.agents?.models?.find(item => item.id === modelId);
+  const model = [...agentModelCatalog("openai"), ...agentModelCatalog("opencode")].find(item => item.id === modelId);
   if (target) target.textContent = model?.description || "Existing model; choose a supported option to change it.";
+}
+
+function agentModelCatalog(provider) {
+  return provider === "opencode" ? (state.agents?.opencodeModels || []) : (state.agents?.models || []);
+}
+
+function updateHarnessAccountFields(form, provider) {
+  const harness = harnessInfo(provider);
+  const adapter = form.querySelector("[data-harness-adapter]");
+  const adapterLabel = form.querySelector("[data-harness-adapter-label]");
+  const note = form.querySelector("[data-harness-auth-note]");
+  if (adapter) adapter.value = harness.adapter;
+  if (adapterLabel) adapterLabel.value = harness.adapterLabel;
+  if (note) note.innerHTML = `Authentication is owned by the local ${clean(harness.adapterLabel)}. Use <code>${clean(harness.loginCommand)}</code>; do not enter an API key here.`;
+}
+
+function updateAgentProfileModels(form, harnessId) {
+  const harness = state.agents?.harnessAccounts?.find(account => account.id === harnessId);
+  const models = agentModelCatalog(harness?.provider);
+  const select = form.querySelector("[data-agent-model]");
+  if (!select) return;
+  select.innerHTML = models.map(model => `<option value="${clean(model.id)}">${clean(model.label)} · ${clean(model.id)}</option>`).join("");
+  updateAgentModelDescription(form, select.value);
 }
 
 function openWorkspaceModal(type, entityId = null, parentId = null) {
@@ -729,7 +842,7 @@ function openAgentModal(type, entityId = null, parentId = null) {
   const collections = { harnessAccount: "harnessAccounts", agentProfile: "agentProfiles", agentAssignment: "agentAssignments" };
   const entity = entityId ? state.agents?.[collections[type]]?.find(item => item.id === entityId) : null;
   if (entityId && !entity) return toast("The Agent configuration could not be found.", "error");
-  if (type === "agentProfile" && !state.agents?.harnessAccounts.length) return toast("Configure a Codex CLI Harness first.", "error");
+  if (type === "agentProfile" && !state.agents?.harnessAccounts.length) return toast("Configure a Harness first.", "error");
   if (type === "agentAssignment" && !state.agents?.agentProfiles.length) return toast("Create an Agent Profile first.", "error");
   if (type === "agentAssignment" && !state.workspace?.projects.length) return toast("Create a Project first.", "error");
   document.getElementById("overlay-root").innerHTML = agentEntityModal(type, entity, parentId);
@@ -737,10 +850,23 @@ function openAgentModal(type, entityId = null, parentId = null) {
   setTimeout(() => document.querySelector("#agent-entity-form input:not([readonly]), #agent-entity-form textarea")?.focus(), 50);
 }
 
-function openAgentTaskModal() {
-  const assignments = state.agents?.agentAssignments.filter(assignment => assignment.canStartWork) || [];
-  if (!assignments.length) return toast("Create an available Agent Assignment before starting a Task.", "error");
-  document.getElementById("overlay-root").innerHTML = agentTaskModal();
+async function openAgentTaskModal(issueId = null) {
+  if (issueId) {
+    try {
+      const response = await fetch(`/api/issues/${encodeURIComponent(issueId)}/agent-work`);
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Issue Agent context could not be loaded.");
+      const assignments = (result.compatibleAssignments || []).filter(assignment => assignment.canStartWork);
+      if (!assignments.length) return toast("No available Agent Assignment matches this Issue Product.", "error");
+      document.getElementById("overlay-root").innerHTML = agentTaskModal({ issue: result.issue, assignments });
+    } catch (error) {
+      return toast(error.message, "error");
+    }
+  } else {
+    const assignments = state.agents?.agentAssignments.filter(assignment => assignment.canStartWork) || [];
+    if (!assignments.length) return toast("Create an available Agent Assignment before starting a Task.", "error");
+    document.getElementById("overlay-root").innerHTML = agentTaskModal({ assignments });
+  }
   bindOverlayEvents();
   setTimeout(() => document.querySelector("#agent-task-form textarea")?.focus(), 50);
 }
@@ -752,6 +878,14 @@ function populateTaskIssues(form, assignmentId) {
   const issues = assignment.productId ? state.workspace.issues.filter(issue => issue.productId === assignment.productId) : [];
   select.innerHTML = `<option value="">No related Issue</option>${issues.map(issue => `<option value="${clean(issue.id)}">${clean(issue.title)}</option>`).join("")}`;
   select.disabled = !assignment.productId || !issues.length;
+}
+
+function updateTaskAssignmentContext(form, assignmentId) {
+  const target = form.querySelector("[data-task-assignment-context]");
+  const assignment = state.agents.agentAssignments.find(item => item.id === assignmentId);
+  if (!target) return;
+  const context = assignment?.effectiveContext || {};
+  target.innerHTML = `<span><small>Agent</small><strong>${clean(context.agentProfile?.name || "Unknown")}</strong></span><span><small>Project / Product</small><strong>${clean([context.project?.name, context.product?.name].filter(Boolean).join(" / ") || "Unknown")}</strong></span><span><small>Repository</small><strong>${clean(context.repository?.name || "No Repository")}</strong></span>`;
 }
 
 async function saveAgentTask(event) {
@@ -768,7 +902,7 @@ async function saveAgentTask(event) {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "The Agent Task could not be created.");
     closeOverlay();
-    await hydrateAgents();
+    await Promise.all([hydrateAgents(), hydrateLocalIssues()]);
     await openAgentConversation(result.agentTask.id);
     toast("Agent Task created", "success");
   } catch (error) {
@@ -780,16 +914,18 @@ async function saveAgentTask(event) {
 async function openAgentConversation(taskId) {
   if (!taskId) return;
   state.agentConversation?.eventSource?.close();
-  state.agentConversation = { taskId, loading: true, messages: [], runs: [], streamText: "", runStatus: null, error: null, eventSource: null };
+  state.agentConversation = { taskId, loading: true, messages: [], runs: [], streamText: "", runStatus: null, error: null, eventSource: null, repositoryExplorer: null, review: { open: false, loading: false, error: null, runId: null, data: null, selectedArtifactId: null, artifactContent: null, artifactLoading: false, actionPending: false, pollTimer: null } };
   renderAgentConversation();
   try {
     await refreshAgentConversation(taskId, { preserveStream: false });
+    initializeRepositoryExplorer();
     const activeRun = [...state.agentConversation.runs].reverse().find(run => ["queued", "running"].includes(run.status));
     if (activeRun) {
       state.agentConversation.runStatus = activeRun.status;
       connectAgentRunEvents(activeRun.id);
     }
     renderAgentConversation();
+    if (state.agentConversation.task?.repositoryId) loadRepositoryDirectory(".");
     setTimeout(() => document.getElementById("agent-message")?.focus(), 50);
   } catch (error) {
     if (!state.agentConversation || state.agentConversation.taskId !== taskId) return;
@@ -825,9 +961,507 @@ function renderAgentConversation() {
   const root = document.getElementById("overlay-root");
   if (!root || !state.agentConversation) return;
   root.innerHTML = agentConversationModal();
+  mountIssueNavigation(root);
+  mountRepositoryExplorer(root);
+  mountRunReview(root);
   bindOverlayEvents();
   const transcript = root.querySelector?.("[data-conversation-transcript]");
+  scrollConversationToBottom(transcript);
+}
+
+function mountIssueNavigation(root) {
+  const task = state.agentConversation?.task;
+  const actions = root.querySelector?.(".conversation-header-actions");
+  if (!task?.issueId || !actions) return;
+  actions.insertAdjacentHTML("afterbegin", `<button class="secondary-button linked-issue-button" type="button" data-agent-task-issue-open="${clean(task.issueId)}">${icon("inbox")} Issue</button>`);
+}
+
+function scrollConversationToBottom(transcript) {
   if (transcript) transcript.scrollTop = transcript.scrollHeight;
+}
+
+function initializeRepositoryExplorer() {
+  const value = state.agentConversation;
+  if (!value?.task?.repositoryId) {
+    if (value) value.repositoryExplorer = null;
+    return;
+  }
+  value.repositoryExplorer = {
+    open: false,
+    expandedPaths: new Set(["."]),
+    childrenByPath: {},
+    loadingPaths: new Set(),
+    errorsByPath: {},
+    selectedPath: null,
+    preview: null,
+    previewLoading: false,
+    previewError: null
+  };
+}
+
+function mountRepositoryExplorer(root) {
+  const value = state.agentConversation;
+  const explorer = value?.repositoryExplorer;
+  const modal = root.querySelector?.(".conversation-modal");
+  const layout = modal?.querySelector?.(".conversation-layout");
+  if (!explorer || !value.task?.repositoryId || !layout) return;
+  modal.classList.toggle("repository-open", explorer.open);
+  layout.classList.add("has-repository");
+  layout.insertAdjacentHTML("afterbegin", repositoryExplorerPanel(explorer));
+  const actions = modal.querySelector(".conversation-header-actions");
+  actions?.insertAdjacentHTML("afterbegin", `<button class="secondary-button repository-toggle" type="button" data-repository-explorer-toggle aria-label="Toggle Repository files">${icon("folder")} Files</button>`);
+}
+
+function repositoryExplorerPanel(explorer) {
+  const task = state.agentConversation?.task;
+  const assignment = state.agents?.agentAssignments.find(item => item.id === task?.agentAssignmentId);
+  const repository = assignment?.effectiveContext?.repository;
+  return `<aside class="conversation-repository" data-repository-explorer aria-label="Repository explorer"><header><div><span class="entity-kind">Repository</span><strong>${clean(repository?.name || "Assigned Repository")}</strong></div><div><span class="read-only-badge">Read only</span><button class="icon-button repository-close" type="button" data-repository-explorer-toggle aria-label="Close Repository files">${icon("close")}</button></div></header><div class="repository-tree" role="tree">${repositoryTreeRows(".", 0, explorer)}</div>${repositoryPreview(explorer)}</aside>`;
+}
+
+function repositoryTreeRows(path, depth, explorer) {
+  const loading = explorer.loadingPaths.has(path);
+  const error = explorer.errorsByPath[path];
+  const children = explorer.childrenByPath[path];
+  if (loading && !children) return `<div class="repository-tree-state">${icon("sync")} Loading files…</div>`;
+  if (error && !children) return `<div class="repository-tree-state error"><span>${clean(error)}</span><button type="button" data-repository-directory-retry="${clean(path)}">Try again</button></div>`;
+  if (!children) return `<div class="repository-tree-state">Open this Repository to load files.</div>`;
+  if (!children.length) return `<div class="repository-tree-state">This folder is empty.</div>`;
+  return children.map(entry => {
+    const padding = 12 + depth * 14;
+    if (entry.type === "directory") {
+      const expanded = explorer.expandedPaths.has(entry.path);
+      const nested = expanded ? repositoryTreeRows(entry.path, depth + 1, explorer) : "";
+      return `<div class="repository-tree-branch"><button class="repository-tree-row directory" type="button" role="treeitem" aria-expanded="${expanded}" data-repository-directory="${clean(entry.path)}" style="--tree-padding:${padding}px"><span class="tree-chevron">${icon("chevron")}</span>${icon("folder")}<span>${clean(entry.name)}</span></button>${expanded ? `<div role="group">${nested}</div>` : ""}</div>`;
+    }
+    return `<button class="repository-tree-row file ${explorer.selectedPath === entry.path ? "selected" : ""}" type="button" role="treeitem" data-repository-file="${clean(entry.path)}" style="--tree-padding:${padding}px">${icon("file")}<span>${clean(entry.name)}</span><small>${clean(formatFileSize(entry.size))}</small></button>`;
+  }).join("");
+}
+
+function repositoryPreview(explorer) {
+  if (!explorer.selectedPath) return `<div class="repository-preview empty"><span>${icon("file")}</span><p>Select a safe text file to preview it.</p></div>`;
+  if (explorer.previewLoading) return `<div class="repository-preview empty"><span>${icon("sync")}</span><p>Loading ${clean(explorer.selectedPath)}…</p></div>`;
+  if (explorer.previewError) return `<div class="repository-preview empty error"><span>${icon("bolt")}</span><p>${clean(explorer.previewError)}</p><button type="button" data-repository-file-retry="${clean(explorer.selectedPath)}">Try again</button></div>`;
+  const file = explorer.preview;
+  if (!file) return "";
+  const lines = file.text.split("\n");
+  return `<section class="repository-preview"><header><div><strong title="${clean(file.path)}">${clean(file.path)}</strong><small>Lines ${file.startLine}–${file.endLine} of ${file.totalLines}</small></div><button class="icon-button" type="button" data-repository-preview-close aria-label="Close file preview">${icon("close")}</button></header><div class="repository-code" tabindex="0">${lines.map((line, index) => `<div><span>${file.startLine + index}</span><code>${clean(line) || " "}</code></div>`).join("")}</div>${file.truncated ? `<footer>Preview limited to 200 lines.</footer>` : ""}</section>`;
+}
+
+function renderRepositoryExplorer() {
+  const root = document.getElementById("overlay-root");
+  const current = root?.querySelector?.("[data-repository-explorer]");
+  const explorer = state.agentConversation?.repositoryExplorer;
+  if (!current || !explorer) return;
+  current.outerHTML = repositoryExplorerPanel(explorer);
+  const replacement = root.querySelector("[data-repository-explorer]");
+  bindRepositoryExplorerEvents(replacement);
+  root.querySelector(".conversation-modal")?.classList.toggle("repository-open", explorer.open);
+}
+
+function bindRepositoryExplorerEvents(root) {
+  if (!root) return;
+  root.querySelectorAll("[data-repository-explorer-toggle]").forEach(button => button.addEventListener("click", toggleRepositoryExplorer));
+  root.querySelectorAll("[data-repository-directory]").forEach(button => button.addEventListener("click", () => toggleRepositoryDirectory(button.dataset.repositoryDirectory)));
+  root.querySelectorAll("[data-repository-file]").forEach(button => button.addEventListener("click", () => openRepositoryFile(button.dataset.repositoryFile)));
+  root.querySelectorAll("[data-repository-directory-retry]").forEach(button => button.addEventListener("click", () => loadRepositoryDirectory(button.dataset.repositoryDirectoryRetry)));
+  root.querySelectorAll("[data-repository-file-retry]").forEach(button => button.addEventListener("click", () => openRepositoryFile(button.dataset.repositoryFileRetry)));
+  root.querySelector("[data-repository-preview-close]")?.addEventListener("click", closeRepositoryPreview);
+}
+
+function toggleRepositoryExplorer() {
+  const explorer = state.agentConversation?.repositoryExplorer;
+  if (!explorer) return;
+  explorer.open = !explorer.open;
+  document.querySelector(".conversation-modal")?.classList.toggle("repository-open", explorer.open);
+}
+
+async function toggleRepositoryDirectory(path) {
+  const explorer = state.agentConversation?.repositoryExplorer;
+  if (!explorer) return;
+  if (explorer.expandedPaths.has(path)) {
+    explorer.expandedPaths.delete(path);
+    renderRepositoryExplorer();
+    return;
+  }
+  explorer.expandedPaths.add(path);
+  if (explorer.childrenByPath[path]) renderRepositoryExplorer();
+  else await loadRepositoryDirectory(path);
+}
+
+async function loadRepositoryDirectory(path) {
+  const value = state.agentConversation;
+  const explorer = value?.repositoryExplorer;
+  if (!value?.taskId || !explorer || explorer.loadingPaths.has(path)) return;
+  explorer.loadingPaths.add(path);
+  delete explorer.errorsByPath[path];
+  renderRepositoryExplorer();
+  try {
+    const response = await fetch(`/api/agent-tasks/${encodeURIComponent(value.taskId)}/repository/tree?path=${encodeURIComponent(path)}`);
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Repository folder could not be loaded.");
+    if (state.agentConversation?.taskId !== value.taskId) return;
+    explorer.childrenByPath[path] = result.directory?.entries || [];
+  } catch (error) {
+    explorer.errorsByPath[path] = error.message;
+  } finally {
+    explorer.loadingPaths.delete(path);
+    if (state.agentConversation?.taskId === value.taskId) renderRepositoryExplorer();
+  }
+}
+
+async function openRepositoryFile(path) {
+  const value = state.agentConversation;
+  const explorer = value?.repositoryExplorer;
+  if (!value?.taskId || !explorer) return;
+  explorer.selectedPath = path;
+  explorer.preview = null;
+  explorer.previewError = null;
+  explorer.previewLoading = true;
+  renderRepositoryExplorer();
+  try {
+    const response = await fetch(`/api/agent-tasks/${encodeURIComponent(value.taskId)}/repository/file?path=${encodeURIComponent(path)}`);
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Repository file could not be previewed.");
+    if (state.agentConversation?.taskId !== value.taskId || explorer.selectedPath !== path) return;
+    explorer.preview = result.file;
+  } catch (error) {
+    explorer.previewError = error.message;
+  } finally {
+    explorer.previewLoading = false;
+    if (state.agentConversation?.taskId === value.taskId) renderRepositoryExplorer();
+  }
+}
+
+function closeRepositoryPreview() {
+  const explorer = state.agentConversation?.repositoryExplorer;
+  if (!explorer) return;
+  explorer.selectedPath = null;
+  explorer.preview = null;
+  explorer.previewError = null;
+  explorer.previewLoading = false;
+  renderRepositoryExplorer();
+}
+
+function mountRunReview(root) {
+  const value = state.agentConversation;
+  const latestRun = value?.runs?.at(-1);
+  const modal = root.querySelector?.(".conversation-modal");
+  const layout = root.querySelector?.(".conversation-layout");
+  const actions = root.querySelector?.(".conversation-header-actions");
+  if (!modal || !layout || !actions || !latestRun) return;
+  actions.insertAdjacentHTML("afterbegin", `<button class="secondary-button run-review-toggle" type="button" data-run-review-toggle aria-pressed="${value.review?.open ? "true" : "false"}">${icon("layers")} Review</button>`);
+  if (!value.review?.open) return;
+  modal.classList.add("review-open");
+  layout.insertAdjacentHTML("beforeend", runReviewPanel(value.review));
+}
+
+function runReviewPanel(review) {
+  if (review.loading && !review.data) return `<aside class="conversation-review" data-run-review><header><div><span class="entity-kind">RUN REVIEW</span><strong>Loading evidence…</strong></div><button class="icon-button" type="button" data-run-review-toggle aria-label="Close Run review">${icon("close")}</button></header><div class="review-loading">${icon("sync")} Materializing bounded review artifacts…</div></aside>`;
+  if (review.error && !review.data) return `<aside class="conversation-review" data-run-review><header><div><span class="entity-kind">RUN REVIEW</span><strong>Review unavailable</strong></div><button class="icon-button" type="button" data-run-review-toggle aria-label="Close Run review">${icon("close")}</button></header><div class="review-error"><strong>Could not load Run evidence</strong><p>${clean(review.error)}</p><button class="secondary-button" data-run-review-refresh>Try again</button></div></aside>`;
+  const data = review.data || {};
+  const run = data.agentRun || state.agentConversation?.runs.find(item => item.id === review.runId) || {};
+  const approvals = data.approvalRequests || [];
+  const changes = data.fileChanges || [];
+  const artifacts = data.artifacts || [];
+  const tests = artifacts.filter(item => item.kind === "test_report");
+  const runs = state.agentConversation?.runs || [];
+  return `<aside class="conversation-review" data-run-review><header><div><span class="entity-kind">RUN REVIEW</span><strong>${clean(runStatusLabel(run.status))} · ${clean(formatDateTime(run.startedAt || run.createdAt))}</strong></div><div><button class="icon-button" type="button" data-run-review-refresh aria-label="Refresh Run review">${icon("sync")}</button><button class="icon-button" type="button" data-run-review-toggle aria-label="Close Run review">${icon("close")}</button></div></header><div class="review-scroll">
+    <label class="review-run-picker">Run<select data-run-review-select>${[...runs].reverse().map((item, index) => `<option value="${clean(item.id)}" ${item.id === run.id ? "selected" : ""}>${index === 0 ? "Latest · " : ""}${clean(formatDateTime(item.startedAt || item.createdAt))} · ${clean(runStatusLabel(item.status))}</option>`).join("")}</select></label>
+    ${review.error ? `<div class="review-inline-error">${clean(review.error)}</div>` : ""}
+    <section class="review-section"><div class="review-section-title"><div><span>Timeline</span><h3>Run activity</h3></div><span class="task-status ${clean(run.status)}">${clean(runStatusLabel(run.status))}</span></div>${runTimeline(run)}</section>
+    ${runRecoveryReview(run, review)}
+    <section class="review-section"><div class="review-section-title"><div><span>Authority</span><h3>Approval requests</h3></div><b>${approvals.length}</b></div>${approvals.length ? approvals.map(reviewApprovalCard).join("") : reviewEmpty("No approval requests", "This Run did not request a protected action.")}</section>
+    <section class="review-section"><div class="review-section-title"><div><span>Workspace</span><h3>Isolated worktree</h3></div></div>${reviewWorktreeCard(data.managedWorktree, run)}</section>
+    <section class="review-section"><div class="review-section-title"><div><span>Changes</span><h3>Exact changed files</h3></div><b>${changes.length}</b></div>${changes.length ? `<div class="review-change-list">${changes.map(change => `<article class="review-change ${clean(change.status)}"><span>${clean(change.operation === "create_file" ? "NEW" : "EDIT")}</span><div><strong>${clean(change.relativePath)}</strong><small>${clean(change.status)} · ${formatBytes(change.beforeBytes)} → ${formatBytes(change.afterBytes)}</small></div></article>`).join("")}</div>` : reviewEmpty("No guarded file changes", "No file mutation evidence is recorded for this Run.")}</section>
+    <section class="review-section"><div class="review-section-title"><div><span>Verification</span><h3>Test evidence</h3></div><b>${tests.length}</b></div>${tests.length ? `<div class="review-test-list">${tests.map(test => `<article class="review-test ${clean(test.metadata?.status || "unknown")}"><span>${test.metadata?.status === "passed" ? icon("check") : icon("bolt")}</span><div><strong>${clean(test.metadata?.policyId || "Verification command")}</strong><small>${clean(verificationStatusCopy(test.metadata?.status))}</small></div><button class="text-button" data-run-artifact-open="${clean(test.id)}">Open report</button></article>`).join("")}</div>` : reviewEmpty("No tests recorded", "A missing test report is not treated as a passing test.")}</section>
+    <section class="review-section review-artifacts"><div class="review-section-title"><div><span>Evidence</span><h3>Run artifacts</h3></div><b>${artifacts.length}</b></div>${artifacts.length ? `<div class="review-artifact-tabs">${artifacts.map(artifact => `<button class="${artifact.id === review.selectedArtifactId ? "selected" : ""}" data-run-artifact-open="${clean(artifact.id)}"><span>${clean(artifactKindLabel(artifact.kind))}</span><small>${formatBytes(artifact.sizeBytes)}</small></button>`).join("")}</div>${reviewArtifactViewer(review, artifacts)}` : reviewEmpty("No artifacts available", "No final response, error, patch, changed-file summary, or test report has been persisted.")}</section>
+    ${reviewIssueWriteback(data.issueWriteback, approvals, review)}
+    <section class="review-section review-decision"><div class="review-section-title"><div><span>Disposition</span><h3>Review decision</h3></div></div><p>Records your review only. It does not commit, push, publish, or update the linked Issue.</p><div><button class="secondary-button" data-run-review-decision="needs_changes" ${review.actionPending ? "disabled" : ""}>Needs changes</button><button class="primary-button" data-run-review-decision="accepted_for_next_step" ${review.actionPending ? "disabled" : ""}>${run.reviewStatus === "accepted_for_next_step" ? icon("check") + " Accepted" : "Accept for next step"}</button></div></section>
+  </div></aside>`;
+}
+
+function runTimeline(run) {
+  const activity = (run.toolActivity || []).slice(-20);
+  const items = [
+    { label: "Run started", time: run.startedAt || run.createdAt, status: "completed" },
+    ...activity.map(item => ({ label: `${String(item.tool || "tool").replaceAll("_", " ")} · ${item.phase || "activity"}`, time: item.timestamp, status: item.errorCode ? "failed" : "completed" })),
+    ...(run.completedAt ? [{ label: `Run ${run.status}`, time: run.completedAt, status: run.status }] : [])
+  ];
+  return `<ol class="review-timeline">${items.map(item => `<li class="${clean(item.status)}"><i></i><div><strong>${clean(item.label)}</strong><small>${clean(formatDateTime(item.time))}</small></div></li>`).join("")}</ol>`;
+}
+
+function runRecoveryReview(run, review) {
+  if (!run.recovery) return "";
+  const recovery = run.recovery;
+  const reason = recovery.reason === "server_restart_during_approval" ? "Server restarted while approval was unresolved." : "Server restarted while the Run was active.";
+  const classification = recovery.classification === "manual_review" ? "Manual worktree review required" : "Safe to retry as a new turn";
+  return `<section class="review-section review-recovery"><div class="review-section-title"><div><span>Recovery</span><h3>Interrupted Run</h3></div><b>${recovery.acknowledgedAt ? icon("check") : "!"}</b></div><article><strong>${clean(classification)}</strong><p>${clean(reason)} No commands, file changes, verification, or external writes were replayed automatically.</p><dl><div><dt>Original state</dt><dd>${clean(runStatusLabel(recovery.originalStatus))}</dd></div><div><dt>Recovered</dt><dd>${clean(formatDateTime(recovery.recoveredAt))}</dd></div></dl>${recovery.acknowledgedAt ? `<small>Acknowledged by ${clean(recovery.acknowledgedBy)} · ${clean(formatDateTime(recovery.acknowledgedAt))}</small>` : `<button class="secondary-button" data-run-recovery-acknowledge ${review.actionPending ? "disabled" : ""}>Acknowledge recovery</button>`}</article></section>`;
+}
+
+function reviewApprovalCard(approval) {
+  const pending = approval.status === "pending";
+  const approved = approval.status === "approved";
+  const canExecute = approved && ["repository.create_worktree", "repository.run_verification", "external.issue.write"].includes(approval.capability);
+  const executeLabel = approval.capability === "repository.create_worktree" ? "Create approved worktree" : approval.capability === "repository.run_verification" ? "Run approved verification" : "Update authoritative Issue";
+  return `<article class="review-approval ${clean(approval.status)}"><header><span>${clean(approval.riskLevel)} risk</span><b>${clean(approval.status)}</b></header><h4>${clean(approvalCapabilityLabel(approval.capability))}</h4><code>${clean(approval.targetId)}</code><p>${clean(approval.reason)}</p><small>${clean(approvalConsequence(approval.capability))}</small>${pending ? `<div><button class="danger-outline-button" data-run-approval-decision="denied" data-approval-id="${clean(approval.id)}">Deny</button><button class="primary-button" data-run-approval-decision="approved" data-approval-id="${clean(approval.id)}">Approve exact target</button></div>` : canExecute ? `<div><button class="secondary-button" data-run-approved-execute="${clean(approval.id)}">${executeLabel}</button></div>` : ""}</article>`;
+}
+
+function reviewIssueWriteback(value, approvals, review) {
+  if (!value?.preview && !value?.attempts?.length) return `<section class="review-section review-writeback"><div class="review-section-title"><div><span>Issue loop</span><h3>Origin status write-back</h3></div></div>${reviewEmpty("No linked Issue", value?.reason || "This Run has no Issue origin to update.")}</section>`;
+  const preview = value.preview;
+  const attempts = value.attempts || [];
+  const unresolved = attempts.some(item => ["awaiting_approval", "approved", "executing"].includes(item.status));
+  const latest = attempts[0];
+  const canRequest = value.available && !unresolved;
+  return `<section class="review-section review-writeback"><div class="review-section-title"><div><span>Issue loop</span><h3>Origin status write-back</h3></div><b>${attempts.length}</b></div>
+    ${preview ? `<article class="writeback-preview"><header><div><span>${clean(preview.source.provider)}</span><strong>${clean(preview.source.displayName)}</strong></div><span class="task-status ${clean(preview.requestedStatus)}">${clean(statusLabel(preview.requestedStatus) || preview.requestedStatus)}</span></header><h4>${clean(preview.issue.title)}</h4><p><b>${clean(statusLabel(preview.currentStatus) || preview.currentStatus)}</b> → <b>${clean(statusLabel(preview.requestedStatus) || preview.requestedStatus)}</b></p><code>${clean(preview.targetId)}</code><small>Authoritative origin · external Issue ${clean(preview.issue.externalIssueId)}. This updates status only; replicas remain unchanged.</small>${canRequest ? `<button class="primary-button" data-issue-writeback-request>${latest?.status === "failed" ? "Retry with new approval" : "Request exact approval"}</button>` : value.reason ? `<p class="writeback-note">${clean(value.reason)}</p>` : ""}</article>` : ""}
+    ${attempts.length ? `<div class="writeback-attempts">${attempts.map(item => issueWritebackAttempt(item, approvals)).join("")}</div>` : `<p class="writeback-note">No external write has been attempted. Run completion and review acceptance leave the Issue unchanged.</p>`}
+  </section>`;
+}
+
+function issueWritebackAttempt(item, approvals) {
+  const approval = approvals.find(value => value.id === item.approvalRequestId);
+  const labels = { awaiting_approval: "Awaiting approval", approved: "Approved — not executed", denied: "Denied — no write", expired: "Expired — no write", cancelled: "Cancelled — no write", executing: "Writing origin…", succeeded: "Origin and local Issue updated", failed: "Upstream result uncertain — retry available" };
+  return `<article class="writeback-attempt ${clean(item.status)}"><header><strong>${clean(labels[item.status] || item.status)}</strong><small>${clean(formatDateTime(item.updatedAt))}</small></header><p>${clean(statusLabel(item.previousStatus) || item.previousStatus)} → ${clean(statusLabel(item.requestedStatus) || item.requestedStatus)}</p>${item.errorMessage ? `<div class="review-inline-error">${clean(item.errorMessage)}</div>` : ""}${item.status === "approved" && approval ? `<button class="primary-button" data-run-approved-execute="${clean(approval.id)}">Update authoritative Issue</button>` : ""}</article>`;
+}
+
+function reviewWorktreeCard(worktree, run) {
+  if (!worktree) return reviewEmpty("No isolated worktree", "This Run has no managed modifying workspace. The base checkout has not been changed.");
+  const canRetain = worktree.status === "ready";
+  const canDiscard = ["ready", "retained", "missing", "failed"].includes(worktree.status);
+  return `<article class="review-worktree ${clean(worktree.status)}"><header><span class="task-status ${clean(worktree.status)}">${clean(worktree.status)}</span><strong>${worktree.present ? worktree.dirty ? "Changes present" : "No detected changes" : "Directory unavailable"}</strong></header><code title="${clean(worktree.path)}">${clean(worktree.path)}</code><dl><div><dt>Base</dt><dd>${clean(String(worktree.baseCommit || "").slice(0, 10))}</dd></div><div><dt>HEAD</dt><dd>${clean(String(worktree.head || "").slice(0, 10) || "Unknown")}</dd></div></dl>${canRetain || canDiscard ? `<div>${canRetain ? `<button class="secondary-button" data-worktree-review-action="retain" data-worktree-id="${clean(worktree.id)}">Retain safely</button>` : ""}${canDiscard ? `<button class="danger-outline-button" data-worktree-review-action="discard" data-worktree-id="${clean(worktree.id)}" data-worktree-path="${clean(worktree.path)}">Discard exact worktree</button>` : ""}</div>` : ""}</article>`;
+}
+
+function reviewArtifactViewer(review, artifacts) {
+  if (!review.selectedArtifactId) return `<div class="review-artifact-empty">Select an artifact to inspect its bounded content.</div>`;
+  const artifact = artifacts.find(item => item.id === review.selectedArtifactId);
+  if (!artifact) return "";
+  if (review.artifactLoading) return `<div class="review-artifact-empty">${icon("sync")} Loading ${clean(artifactKindLabel(artifact.kind))}…</div>`;
+  if (review.artifactError) return `<div class="review-artifact-empty error">${clean(review.artifactError)}</div>`;
+  return `<div class="review-artifact-viewer"><header><strong>${clean(artifactKindLabel(artifact.kind))}</strong><span>SHA-256 ${clean(artifact.contentHash.slice(0, 12))} · retained until ${clean(formatDateTime(artifact.retentionUntil))}</span></header><pre>${clean(review.artifactContent || "")}</pre></div>`;
+}
+
+function reviewEmpty(title, detail) { return `<div class="review-empty"><strong>${clean(title)}</strong><p>${clean(detail)}</p></div>`; }
+function formatBytes(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes < 0) return "Unknown size";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+function artifactKindLabel(kind) { return ({ final_output: "Final response", changed_files: "Changed files", patch: "Patch", test_report: "Test report", bounded_log: "Bounded log", error_report: "Error report" })[kind] || String(kind || "Artifact").replaceAll("_", " "); }
+function verificationStatusCopy(status) { return ({ passed: "Passed", failed: "Failed — review output", timed_out: "Timed out", cancelled: "Cancelled", launch_error: "Could not start" })[status] || "Status unavailable"; }
+function approvalCapabilityLabel(value) { return ({ "repository.create_worktree": "Create isolated worktree", "repository.modify_files": "Modify one exact file", "repository.run_verification": "Run configured verification", "repository.create_commit": "Create commit", "repository.push": "Push changes", "external.issue.write": "Update external Issue", "external.message.send": "Send external message" })[value] || String(value || "Protected action").replaceAll("_", " "); }
+function approvalConsequence(value) { return ({ "repository.create_worktree": "Approval permits creation of one detached workspace; it does not edit the base checkout.", "repository.modify_files": "Approval permits one exact guarded file operation in the managed worktree.", "repository.run_verification": "Approval runs one fixed command policy in the managed worktree without a shell.", "external.issue.write": "Approval permits one status transition on the named authoritative origin Issue. It does not update replicas or other fields." })[value] || "Approval is exact-target and single-use; it grants no other capability."; }
+
+function bindRunReviewEvents(root) {
+  if (!root) return;
+  root.querySelectorAll("[data-run-review-toggle]").forEach(button => button.addEventListener("click", toggleRunReview));
+  root.querySelector("[data-run-review-refresh]")?.addEventListener("click", () => loadRunReview(state.agentConversation?.review?.runId, { force: true }));
+  root.querySelector("[data-run-review-select]")?.addEventListener("change", event => loadRunReview(event.currentTarget.value, { force: true }));
+  root.querySelectorAll("[data-run-artifact-open]").forEach(button => button.addEventListener("click", () => openRunArtifact(button.dataset.runArtifactOpen)));
+  root.querySelectorAll("[data-run-approval-decision]").forEach(button => button.addEventListener("click", () => decideReviewApproval(button.dataset.approvalId, button.dataset.runApprovalDecision)));
+  root.querySelectorAll("[data-run-approved-execute]").forEach(button => button.addEventListener("click", () => executeApprovedReviewAction(button.dataset.runApprovedExecute)));
+  root.querySelector("[data-issue-writeback-request]")?.addEventListener("click", requestIssueWritebackApproval);
+  root.querySelectorAll("[data-worktree-review-action]").forEach(button => button.addEventListener("click", () => reviewWorktreeAction(button.dataset.worktreeId, button.dataset.worktreeReviewAction, button.dataset.worktreePath)));
+  root.querySelectorAll("[data-run-review-decision]").forEach(button => button.addEventListener("click", () => recordRunReviewDecision(button.dataset.runReviewDecision)));
+  root.querySelector("[data-run-recovery-acknowledge]")?.addEventListener("click", acknowledgeRunRecovery);
+}
+
+function toggleRunReview() {
+  const value = state.agentConversation;
+  if (!value?.review || !value.runs.length) return;
+  value.review.open = !value.review.open;
+  clearTimeout(value.review.pollTimer);
+  if (!value.review.open) {
+    value.review.pollTimer = null;
+    return renderAgentConversation();
+  }
+  const runId = value.review.runId || value.runs.at(-1).id;
+  value.review.runId = runId;
+  value.review.loading = true;
+  renderAgentConversation();
+  loadRunReview(runId, { force: true });
+}
+
+async function loadRunReview(runId, options = {}) {
+  const review = state.agentConversation?.review;
+  if (!review || !runId || (!options.force && review.loading)) return;
+  review.runId = runId;
+  review.loading = true;
+  review.error = null;
+  clearTimeout(review.pollTimer);
+  renderRunReviewPanel();
+  try {
+    const response = await fetch(`/api/agent-runs/${encodeURIComponent(runId)}/review`);
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Run review could not be loaded.");
+    if (state.agentConversation?.review !== review || review.runId !== runId) return;
+    review.data = result;
+    review.loading = false;
+    const artifacts = result.artifacts || [];
+    if (!artifacts.some(item => item.id === review.selectedArtifactId)) {
+      review.selectedArtifactId = preferredReviewArtifact(artifacts)?.id || null;
+      review.artifactContent = null;
+    }
+    renderRunReviewPanel();
+    if (review.selectedArtifactId && review.artifactContent == null) await openRunArtifact(review.selectedArtifactId, { quiet: true });
+    scheduleRunReviewPoll(review);
+  } catch (error) {
+    if (state.agentConversation?.review !== review) return;
+    review.loading = false;
+    review.error = error.message;
+    renderRunReviewPanel();
+  }
+}
+
+function preferredReviewArtifact(artifacts) {
+  const order = ["test_report", "patch", "changed_files", "error_report", "final_output", "bounded_log"];
+  return [...artifacts].sort((left, right) => order.indexOf(left.kind) - order.indexOf(right.kind))[0];
+}
+
+function scheduleRunReviewPoll(review) {
+  clearTimeout(review.pollTimer);
+  const active = ["queued", "running", "waiting_approval"].includes(review.data?.agentRun?.status) || (review.data?.approvalRequests || []).some(item => ["pending", "approved"].includes(item.status));
+  if (review.open && active) review.pollTimer = setTimeout(() => loadRunReview(review.runId, { force: true }), 1500);
+}
+
+function renderRunReviewPanel() {
+  const review = state.agentConversation?.review;
+  const current = document.querySelector("[data-run-review]");
+  if (!review?.open || !current) return;
+  const scroll = current.querySelector(".review-scroll")?.scrollTop || 0;
+  current.outerHTML = runReviewPanel(review);
+  const replacement = document.querySelector("[data-run-review]");
+  bindRunReviewEvents(replacement);
+  if (replacement?.querySelector(".review-scroll")) replacement.querySelector(".review-scroll").scrollTop = scroll;
+}
+
+async function openRunArtifact(artifactId, options = {}) {
+  const review = state.agentConversation?.review;
+  if (!review || !artifactId) return;
+  review.selectedArtifactId = artifactId;
+  review.artifactLoading = true;
+  review.artifactError = null;
+  if (!options.quiet) renderRunReviewPanel();
+  try {
+    const response = await fetch(`/api/agent-runs/${encodeURIComponent(review.runId)}/artifacts/${encodeURIComponent(artifactId)}`);
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Artifact content could not be loaded.");
+    review.artifactContent = result.content;
+  } catch (error) {
+    review.artifactContent = null;
+    review.artifactError = error.message;
+  } finally {
+    review.artifactLoading = false;
+    renderRunReviewPanel();
+  }
+}
+
+async function decideReviewApproval(approvalId, decision) {
+  const review = state.agentConversation?.review;
+  if (!review || review.actionPending) return;
+  await performReviewAction(async () => {
+    const response = await fetch(`/api/agent-runs/${encodeURIComponent(review.runId)}/approvals/${encodeURIComponent(approvalId)}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision, actor: "local-user", note: decision === "approved" ? "Approved from Run review" : "Denied from Run review" }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Approval decision could not be recorded.");
+    toast(decision === "approved" ? "Exact target approved" : "Protected action denied", decision === "approved" ? "success" : "info");
+  });
+}
+
+async function executeApprovedReviewAction(approvalId) {
+  const review = state.agentConversation?.review;
+  const approval = review?.data?.approvalRequests?.find(item => item.id === approvalId);
+  if (!review || !approval) return;
+  await performReviewAction(async () => {
+    if (approval.capability === "external.issue.write") {
+      const response = await fetch(`/api/agent-runs/${encodeURIComponent(review.runId)}/issue-writeback/execute`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ approvalRequestId: approval.id, actor: "local-user" }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "The authoritative Issue could not be updated.");
+      toast("Authoritative Issue and local status updated", "success");
+      return;
+    }
+    const isWorktree = approval.capability === "repository.create_worktree";
+    const policyId = approval.targetId.split(":").at(-1);
+    const url = isWorktree ? `/api/agent-runs/${encodeURIComponent(review.runId)}/worktree` : `/api/agent-runs/${encodeURIComponent(review.runId)}/verifications/${encodeURIComponent(policyId)}`;
+    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(isWorktree ? { approvalRequestId: approval.id, actor: "local-user" } : { actor: "local-user" }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Approved action could not be executed.");
+    toast(isWorktree ? "Isolated worktree created" : `Verification ${result.verification?.status || "completed"}`, result.verification?.status === "passed" || isWorktree ? "success" : "error");
+  });
+}
+
+async function requestIssueWritebackApproval() {
+  const review = state.agentConversation?.review;
+  const preview = review?.data?.issueWriteback?.preview;
+  if (!review || !preview) return;
+  await performReviewAction(async () => {
+    const response = await fetch(`/api/agent-runs/${encodeURIComponent(review.runId)}/issue-writeback/approval`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requestedStatus: preview.requestedStatus, requestedBy: "local-user" }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Issue write-back approval could not be requested.");
+    toast("Exact Issue transition is ready for approval", "info");
+  });
+}
+
+async function acknowledgeRunRecovery() {
+  const review = state.agentConversation?.review;
+  if (!review) return;
+  await performReviewAction(async () => {
+    const response = await fetch(`/api/agent-runs/${encodeURIComponent(review.runId)}/recovery/acknowledge`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actor: "local-user" }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Run recovery could not be acknowledged.");
+    toast("Run recovery acknowledged; no action was replayed", "success");
+    await hydrateAgents();
+  });
+}
+
+async function reviewWorktreeAction(worktreeId, action, path) {
+  if (action === "discard" && !window.confirm(`Discard the exact managed worktree at:\n\n${path}\n\nThis removes its Agent changes and cannot be undone.`)) return;
+  await performReviewAction(async () => {
+    const response = await fetch(`/api/managed-worktrees/${encodeURIComponent(worktreeId)}/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action === "discard" ? { confirmDiscard: true, confirmationPath: path } : {}) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || `Worktree could not be ${action === "retain" ? "retained" : "discarded"}.`);
+    toast(action === "retain" ? "Worktree retained; active lock released" : "Exact managed worktree discarded", "success");
+  });
+}
+
+async function recordRunReviewDecision(status) {
+  const review = state.agentConversation?.review;
+  if (!review) return;
+  await performReviewAction(async () => {
+    const response = await fetch(`/api/agent-runs/${encodeURIComponent(review.runId)}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, actor: "local-user" }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Review decision could not be recorded.");
+    toast(status === "accepted_for_next_step" ? "Run accepted for the next explicit step" : "Run marked as needing changes", "success");
+  });
+}
+
+async function performReviewAction(action) {
+  const review = state.agentConversation?.review;
+  if (!review || review.actionPending) return;
+  review.actionPending = true;
+  review.error = null;
+  renderRunReviewPanel();
+  try {
+    await action();
+    review.actionPending = false;
+    await loadRunReview(review.runId, { force: true });
+  } catch (error) {
+    review.error = error.message;
+    review.actionPending = false;
+    renderRunReviewPanel();
+  } finally {
+    review.actionPending = false;
+    renderRunReviewPanel();
+  }
+}
+
+function formatFileSize(value) {
+  const bytes = Number(value) || 0;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 async function sendAgentTurn(event) {
@@ -850,7 +1484,7 @@ async function sendAgentTurn(event) {
     if (!response.ok) throw new Error(result.error || "The Agent Run could not be started.");
     state.agentConversation.runs.push(result.agentRun);
     state.agentConversation.runStatus = result.agentRun.status;
-    renderAgentConversation();
+    patchAgentConversationLiveView();
     connectAgentRunEvents(result.agentRun.id);
   } catch (error) {
     state.agentConversation.messages = state.agentConversation.messages.filter(item => item.id !== pendingMessage.id);
@@ -930,7 +1564,6 @@ function patchAgentConversationLiveView() {
   const streamMessage = modal.querySelector("[data-stream-message]");
   if (!streamMessage && ["running", "queued", "cancelling", "reconnecting"].includes(status)) return renderAgentConversation();
   if (streamMessage) {
-    const shouldFollow = transcript ? transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < 80 : false;
     const content = streamMessage.querySelector("[data-stream-content]");
     const label = streamMessage.querySelector("[data-stream-label]");
     if (content) {
@@ -938,7 +1571,7 @@ function patchAgentConversationLiveView() {
       content.classList.toggle("placeholder", !value.streamText);
     }
     if (label) label.textContent = value.streamText ? "Receiving response…" : status === "reconnecting" ? "Reconnecting…" : "Working…";
-    if (shouldFollow && transcript) transcript.scrollTop = transcript.scrollHeight;
+    scrollConversationToBottom(transcript);
   }
 
   const cancelButton = modal.querySelector("[data-agent-run-cancel]");
@@ -1303,7 +1936,9 @@ async function hydrateAgents(options = {}) {
       fetch("/api/agent-profiles"),
       fetch("/api/agent-assignments"),
       fetch("/api/agent-models"),
-      fetch("/api/agent-tasks")
+      fetch("/api/agent-models?provider=opencode"),
+      fetch("/api/agent-tasks"),
+      fetch("/api/health")
     ]);
     const payloads = await Promise.all(responses.map(response => response.json()));
     const failedIndex = responses.findIndex(response => !response.ok);
@@ -1313,13 +1948,30 @@ async function hydrateAgents(options = {}) {
       agentProfiles: payloads[1].agentProfiles || [],
       agentAssignments: payloads[2].agentAssignments || [],
       models: payloads[3].models || [],
-      agentTasks: payloads[4].agentTasks || []
+      opencodeModels: payloads[4].models || [],
+      agentTasks: payloads[5].agentTasks || []
     };
+    state.operationalHealth = payloads[6];
   } catch (error) {
     state.agentsError = error.message;
   } finally {
     state.agentsLoading = false;
     if (state.page === "agents") render();
+  }
+}
+
+async function reconcileOperations() {
+  const button = document.querySelector("[data-operations-reconcile]");
+  if (button) button.disabled = true;
+  try {
+    const response = await fetch("/api/operations/reconcile", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Operational reconciliation failed.");
+    await hydrateAgents();
+    toast(`Reconciliation complete · ${result.automaticReplays || 0} actions replayed`, "success");
+  } catch (error) {
+    if (button) button.disabled = false;
+    toast(error.message, "error");
   }
 }
 

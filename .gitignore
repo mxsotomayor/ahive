@@ -14,3 +14,4 @@ data/backups/
 data/google-oauth.json
 data/google-oauth.json.tmp
 data/agent-tool-audit/
+data/run-artifacts/

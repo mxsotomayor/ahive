@@ -1,6 +1,6 @@
 # 026: Build the Run Review UI
 
-Status: **Pending**  
+Status: **Complete**
 Depends on: **019, 025**
 
 ## Description
@@ -36,9 +36,24 @@ Let the user understand and control an Agent's code work before accepting it.
 
 ## Approval criteria
 
-- [ ] The user can identify exactly what changed and which tests ran.
-- [ ] Approval controls describe their consequences before acting.
-- [ ] Retain and discard states are distinct and truthful.
-- [ ] A failed test cannot be visually mistaken for success.
-- [ ] No Git or external write happens from a review-only action.
+- [x] The user can identify exactly what changed and which tests ran.
+- [x] Approval controls describe their consequences before acting.
+- [x] Retain and discard states are distinct and truthful.
+- [x] A failed test cannot be visually mistaken for success.
+- [x] No Git or external write happens from a review-only action.
 
+## Current checkpoint
+
+The full-screen Agent Task now has a **Review** drawer for historical Runs,
+tool activity, exact approval targets, managed-worktree disposition, changed
+paths, failed/passed test evidence, bounded artifact content, and review-only
+accept/needs-changes decisions. Approval, retain, discard, verification, and
+artifact actions use the existing protected APIs.
+
+Automated UI rendering and all 77 regression tests pass. The in-app browser
+runtime exposed no available browser backend during implementation, so wide and
+narrow visual interaction remains the user-testable acceptance checkpoint.
+
+The user accepted the checkpoint and requested the next task. Review evidence,
+protected actions, and review-only disposition therefore form the completed
+Task 026 baseline for Issue-to-Agent navigation.

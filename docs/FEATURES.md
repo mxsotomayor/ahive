@@ -31,27 +31,44 @@ The executable backlog is maintained in
   - [x] Add reusable Agent Profiles (Task 012).
   - [x] Add Project-scoped Agent Assignments (Task 013).
   - [x] Build the Agent management surface (Task 014).
-  - [x] Restrict Agent Profiles to a selectable eight-model OpenAI catalog.
+   - [x] Restrict Agent Profiles to a selectable eight-model OpenAI catalog.
+   - [x] Accept OpenCode CLI Harness Accounts with provider-specific readiness
+     and a fixed 20-model catalog (Task 031).
+   - [x] Run OpenCode read-only conversational turns with streamed JSON events
+     and no repository MCP (Task 032).
 - [x] Support conversational, streamed, cancellable Agent Tasks (Tasks 015–019).
   - [x] Keep the conversation surface mounted during Run and page-state refreshes.
   - [x] Stream Codex app-server Agent message deltas into the active chat bubble.
+  - [x] Open history at the newest Message and keep streamed output bottom-anchored without animated jumps.
   - [x] Persist Agent Tasks, Conversations, and visible Messages (Task 015).
   - [x] Prove the Codex CLI process boundary with a sanitized live spike (Task 016).
   - [x] Implement durable chat-only Agent Runs (Task 017).
   - [x] Stream and cancel Agent Runs (Task 018).
   - [x] Build the Agent conversation UI (Task 019).
-- [ ] Add approval-gated repository tools and isolated code work (Tasks 020–026).
+  - [x] Make Agent Task conversations full-screen with a safe Repository tree and text preview (Task 020a).
+- [x] Add approval-gated repository tools and isolated code work (Tasks 020–026).
   - [x] Add constrained read-only Repository tools with durable audit metadata (Task 020).
-  - [ ] Add approvals, isolated worktrees, guarded edits, tests, artifacts, and review UI (Tasks 021–026).
-- [ ] Connect Issues to Agent Tasks and explicit status write-back (Tasks 027–028).
+  - [x] Add durable, exact-target, single-use Run approvals (Task 021).
+  - [x] Add deterministic, recoverable managed Git worktrees (Task 022).
+  - [x] Add exact-target guarded patch and create-file tools (Task 023).
+  - [x] Add approved exact-command verification policies and execution (Task 024).
+  - [x] Persist bounded, redacted Run artifacts outside primary rows (Task 025).
+  - [x] Complete the implemented Run review drawer (Task 026).
+- [x] Connect Issues to Agent Tasks and explicit status write-back (Tasks 027–028).
+  - [x] Start scoped Agent work from an existing neutral Issue without changing external identity (Task 027).
+  - [x] Add explicit approved Issue status write-back (Task 028).
 - [ ] Complete recovery, security, and Agent MVP acceptance (Tasks 029–030).
+  - [x] Reconcile interrupted Runs and expose sanitized local operational health (Task 029).
+  - [ ] Execute and document the complete Agent MVP acceptance flow (Task 030).
 
 ### First Agent milestone
 
-The first usable slice will let the user configure a Codex CLI-backed Agent,
+The current usable slice lets the user configure a Codex CLI-backed Agent,
 assign it to a Project and verified local Repository, maintain a conversation,
-and allow bounded read-only repository inspection. Code modification is a later,
-approval-gated slice and must not be simulated in the UI.
+inspect bounded repository context, review approval-gated worktree changes and
+verification evidence, and explicitly close a linked GitLab origin Issue after
+an exact approval. Commit, push, and replica propagation remain later,
+separately authorized slices and must not be simulated in the UI.
 
 ## Done
 
@@ -169,8 +186,8 @@ the initial read-only Agent milestone unless required for correct Agent context.
 
 ### GitHub Projects
 
-- [ ] Obtain approved credentials for the Zing organization.
-- [ ] Configure the Zing GitHub Project as an IRN Product Source.
+- [ ] Obtain approved credentials for the Rezzilla, Labs organization.
+- [ ] Configure the Rezzilla, Labs GitHub Project as an IRN Product Source.
 - [ ] Define how an origin Issue is represented in GitHub.
 - [ ] Store GitHub item links and external versions.
 - [ ] Implement idempotent replica creation and status updates.

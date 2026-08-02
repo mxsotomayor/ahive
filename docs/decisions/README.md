@@ -21,6 +21,10 @@ chronological, not a priority ranking.
 | [0014](0014-reusable-agent-profiles-and-assignments.md) | Reusable Agent Profiles and Project Assignments | Accepted | 2026-07-29 |
 | [0015](0015-transactional-sqlite-persistence.md) | Transactional SQLite persistence | Accepted | 2026-07-29 |
 | [0016](0016-codex-cli-agent-harness.md) | Codex CLI is the initial Agent Harness boundary | Accepted | 2026-07-29 |
+| [0017](0017-content-addressed-verification-command-policies.md) | Verification commands are content-addressed exact policies | Accepted | 2026-07-29 |
+| [0018](0018-content-addressed-private-run-artifacts.md) | Store bounded Run evidence in a private content-addressed artifact store | Accepted | 2026-07-29 |
+| [0019](0019-opencode-cli-second-harness-provider.md) | OpenCode CLI is accepted as a second Harness provider | Accepted | 2026-08-01 |
+| [0020](0020-opencode-read-only-run-adapter.md) | OpenCode Runs use a read-only local adapter | Accepted | 2026-08-01 |
 
 ## Template
 

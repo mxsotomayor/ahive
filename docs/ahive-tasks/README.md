@@ -51,16 +51,23 @@ Tasks are intentionally small, ordered, and independently verifiable.
 | [018](018-stream-runs-and-support-cancellation.md) | Stream run events and support cancellation | 017 | Complete |
 | [019](019-build-agent-conversation-ui.md) | Build the conversational task UI | 014, 018 | Complete |
 | [020](020-add-read-only-repository-tools.md) | Add constrained read-only repository tools | 009, 018 | Complete |
-| [021](021-add-run-approval-model.md) | Add durable run approvals | 018 | Pending |
-| [022](022-manage-isolated-git-worktrees.md) | Manage isolated Git worktrees | 008, 021 | Pending |
-| [023](023-add-guarded-code-editing.md) | Add guarded code editing | 020, 022 | Pending |
-| [024](024-add-test-command-policies.md) | Add approved test command execution | 023 | Pending |
-| [025](025-persist-run-artifacts.md) | Persist run summaries and artifacts | 023, 024 | Pending |
-| [026](026-build-run-review-ui.md) | Build diff, test, and approval review UI | 019, 025 | Pending |
-| [027](027-connect-issues-to-agent-tasks.md) | Connect Issues to Agent Tasks | 015, 026 | Pending |
-| [028](028-add-explicit-issue-writeback.md) | Add approved Issue status write-back | 027 | Pending |
-| [029](029-add-run-recovery-and-observability.md) | Add recovery and operational visibility | 018, 025 | Pending |
+| [020a](020a-build-agent-repository-explorer.md) | Build the Agent Repository explorer | 019, 020 | Complete |
+| [021](021-add-run-approval-model.md) | Add durable run approvals | 018 | Complete |
+| [022](022-manage-isolated-git-worktrees.md) | Manage isolated Git worktrees | 008, 021 | Complete |
+| [023](023-add-guarded-code-editing.md) | Add guarded code editing | 020, 022 | Complete |
+| [024](024-add-test-command-policies.md) | Add approved test command execution | 023 | Complete |
+| [025](025-persist-run-artifacts.md) | Persist run summaries and artifacts | 023, 024 | Complete |
+| [026](026-build-run-review-ui.md) | Build diff, test, and approval review UI | 019, 025 | Complete |
+| [027](027-connect-issues-to-agent-tasks.md) | Connect Issues to Agent Tasks | 015, 026 | Complete |
+| [028](028-add-explicit-issue-writeback.md) | Add approved Issue status write-back | 027 | Complete |
+| [029](029-add-run-recovery-and-observability.md) | Add recovery and operational visibility | 018, 025 | Complete |
 | [030](030-complete-agent-mvp-acceptance.md) | Complete the first Agent MVP | 026–029 | Pending |
+| [031](031-add-opencode-harness-provider.md) | Accept the OpenCode CLI Harness provider | 011, 016 | Complete |
+| [032](032-run-opencode-read-only-agent-turns.md) | Run OpenCode read-only Agent turns | 031 | Complete |
+
+Task 031 was implemented ahead of the pending Task 030 at the product owner's
+direction; it changes no Codex behavior and does not alter the MVP acceptance
+scope.
 
 ## Milestones
 
@@ -72,3 +79,4 @@ Tasks are intentionally small, ordered, and independently verifiable.
 - **Safe repository work:** 020–026
 - **Issue-to-agent workflow:** 027–028
 - **MVP hardening:** 029–030
+- **Additional harness providers:** 031–032

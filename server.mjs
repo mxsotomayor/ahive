@@ -5,7 +5,7 @@ import { fetchAssignedProjectIssues, GitHubApiError, updateProjectItemStatus } f
 import { createGitLabIssue, fetchAssignedGitLabIssues, GitLabApiError, updateGitLabIssueStatus } from "./lib/gitlab.mjs";
 import { join as joinPath } from "node:path";
 import { readCanonicalStore } from "./lib/local-store.mjs";
-import { appendConversationMessage, createAgentTask, createWorkspaceEntity, executeAgentTaskTurn, getAgentTaskView, importGitLabIssues, initializeNeutralWorkspace, listAgentAssignmentViews, listAgentProfileViews, listAgentRuns, listAgentTaskViews, listConversationMessages, listHarnessAccountViews, listLegacyIssueViews, listSupportedAgentModels, readNeutralStore, recordRepositoryInspection, recordRepositoryVerification, removeAgentAssignment, removeAgentProfile, removeHarnessAccount, removeProductSource, updateIssueByExternalIdentity, updateWorkspaceEntity } from "./lib/neutral-store.mjs";
+import { acknowledgeAgentRunRecovery, appendConversationMessage, beginIssueWriteback, cancelRunApproval, completeIssueWriteback, createAgentTask, createIssueWritebackApproval, createRunApprovalRequest, createWorkspaceEntity, decideRunApproval, executeAgentTaskTurn, failIssueWriteback, getAgentTaskView, getIssueAgentWorkView, getIssueWritebackView, getOperationalHealth, importGitLabIssues, initializeNeutralWorkspace, listAgentAssignmentViews, listAgentProfileViews, listAgentRuns, listAgentTaskViews, listConversationMessages, listGuardedFileChanges, listHarnessAccountViews, listLegacyIssueViews, listRepositoryVerificationCommands, listRunApprovalRequests, listSupportedAgentModels, readNeutralStore, reconcileInterruptedAgentOperations, recordRepositoryInspection, recordRepositoryVerification, removeAgentAssignment, removeAgentProfile, removeHarnessAccount, removeProductSource, replaceRepositoryVerificationCommands, setRunReviewStatus, updateIssueByExternalIdentity, updateWorkspaceEntity } from "./lib/neutral-store.mjs";
 import { appendGoogleSheetValues, createGoogleAuthorizationUrl, createGoogleOAuthState, createGoogleSheetIssueTemplate, exchangeGoogleAuthorizationCode, googleSheetsConnectionStatus, readGoogleSheetValues, saveGoogleOAuthTokens, testGoogleSheetConnection, writeGoogleSheetValues } from "./lib/google-sheets.mjs";
 import { openDatabase } from "./lib/database.mjs";
 import { createSqliteNeutralStore } from "./lib/sqlite-neutral-store.mjs";
@@ -13,10 +13,17 @@ import { importLegacyNeutralStore } from "./lib/legacy-neutral-import.mjs";
 import { parseRepositoryRoots, verifyRepositoryPath } from "./lib/repository-paths.mjs";
 import { inspectGitRepository } from "./lib/git-inspection.mjs";
 import { inspectCodexCli } from "./lib/codex-cli.mjs";
+import { inspectOpenCodeCli } from "./lib/opencode-cli.mjs";
 import { RunEventBroker } from "./lib/run-event-broker.mjs";
+import { createRepositoryToolService } from "./lib/repository-tools.mjs";
+import { createManagedWorktreeService } from "./lib/git-worktrees.mjs";
+import { createGuardedWriteService } from "./lib/guarded-write-tools.mjs";
+import { createVerificationCommandService } from "./lib/verification-commands.mjs";
+import { createRunArtifactService } from "./lib/run-artifacts.mjs";
 
 const port = Number(process.env.PORT || 4173);
 const root = process.cwd();
+const processStartedAt = new Date().toISOString();
 const canonicalStorePath = joinPath(root, "data", "issues.json");
 const googleOAuthStorePath = joinPath(root, "data", "google-oauth.json");
 const fileEnv = await loadEnv(join(root, ".env"));
@@ -33,8 +40,42 @@ const repositoryToolRuntime = {
   databasePath,
   repositoryRoots,
   auditDirectory: resolve(root, "data", "agent-tool-audit"),
-  nodeExecutable: process.execPath
+  nodeExecutable: process.execPath,
+  worktreeRoot: env.AHIVE_WORKTREE_ROOT,
+  artifactRoot: resolve(root, env.AHIVE_ARTIFACT_ROOT || joinPath("data", "run-artifacts"))
 };
+const repositoryBrowserService = createRepositoryToolService({
+  readStore: () => readNeutralStore(neutralStore),
+  repositoryRoots
+});
+const managedWorktreeService = createManagedWorktreeService({
+  store: neutralStore,
+  repositoryRoots,
+  worktreeRoot: env.AHIVE_WORKTREE_ROOT,
+  onTrace: event => traceAgentStep(event.runId, event.step, event)
+});
+const guardedWriteService = createGuardedWriteService({
+  store: neutralStore,
+  worktreeRoot: env.AHIVE_WORKTREE_ROOT,
+  onAudit: event => traceAgentStep(event.runId, `guarded.${event.tool}.${event.phase}`, event)
+});
+const runArtifactService = createRunArtifactService({
+  store: neutralStore,
+  root: repositoryToolRuntime.artifactRoot,
+  worktreeRoot: env.AHIVE_WORKTREE_ROOT,
+  retentionDays: Number(env.AHIVE_ARTIFACT_RETENTION_DAYS || 30)
+});
+const verificationCommandService = createVerificationCommandService({
+  store: neutralStore,
+  worktreeRoot: env.AHIVE_WORKTREE_ROOT,
+  maxConcurrency: Number(env.AHIVE_VERIFICATION_CONCURRENCY || 2),
+  onAudit: event => traceAgentStep(event.runId, `verification.${event.phase}`, event),
+  onResult: async (runId, result) => {
+    const artifact = await runArtifactService.captureVerification(runId, result);
+    traceAgentStep(runId, "artifact.verification.persisted", { artifactId: artifact.id, kind: artifact.kind, status: result.status });
+    return artifact;
+  }
+});
 const githubConfig = {
   token: env.GITHUB_TOKEN,
   owner: env.GITHUB_OWNER,
@@ -46,7 +87,7 @@ const gitlabConfig = {
   defaultProjectId: env.GITLAB_DEFAULT_PROJECT_ID
 };
 const workspaceConfig = {
-  organizationName: env.MAXWELL_ORGANIZATION_NAME || "Zing Developers",
+  organizationName: env.MAXWELL_ORGANIZATION_NAME || "RezzillaLabs",
   projectName: env.MAXWELL_PROJECT_NAME || "IRN",
   productName: env.MAXWELL_PRODUCT_NAME || "IRN",
   gitlabBaseUrl: gitlabConfig.baseUrl,
@@ -85,11 +126,32 @@ if (!initialNeutralStore.issues.length) {
     await importGitLabIssues(neutralStore, legacyStore.issues, legacyStore.meta?.gitlab || {}, workspaceConfig);
   }
 }
+const startupRecovery = await reconcileInterruptedAgentOperations(neutralStore);
+traceAgentStep(null, "run.reconciliation.completed", startupRecovery);
+let worktreeReconciliation = await managedWorktreeService.reconcile();
+if (worktreeReconciliation.enabled) traceAgentStep(null, "worktree.reconciliation.completed", worktreeReconciliation);
 
 const server = createServer(async (request, response) => {
   const requestUrl = new URL(request.url || "/", `http://${request.headers.host || "127.0.0.1"}`);
 
   try {
+    if (requestUrl.pathname === "/api/health" && request.method === "GET") {
+      const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
+      return sendJson(response, 200, getOperationalHealth(await readNeutralStore(neutralStore), {
+        startedAt: processStartedAt,
+        uptimeSeconds: (Date.now() - Date.parse(processStartedAt)) / 1_000,
+        codexCliStatus: runtimeStatus.status,
+        startupRecovery: { ...startupRecovery, worktrees: worktreeReconciliation }
+      }));
+    }
+
+    if (requestUrl.pathname === "/api/operations/reconcile" && request.method === "POST") {
+      const manualRecovery = await reconcileInterruptedAgentOperations(neutralStore);
+      worktreeReconciliation = await managedWorktreeService.reconcile();
+      traceAgentStep(null, "operations.manual_reconciliation.completed", { ...manualRecovery, ...worktreeReconciliation });
+      return sendJson(response, 200, { recovery: manualRecovery, worktrees: worktreeReconciliation, automaticReplays: 0 });
+    }
+
     if (requestUrl.pathname === "/api/google/oauth/status" && request.method === "GET") {
       const status = await googleSheetsConnectionStatus(googleConfig, googleOAuthStorePath);
       const store = await readNeutralStore(neutralStore);
@@ -231,22 +293,37 @@ const server = createServer(async (request, response) => {
       return sendJson(response, 405, { error: "Method not allowed for this Repository operation." });
     }
 
+    const repositoryCommandsMatch = requestUrl.pathname.match(/^\/api\/repositories\/([^/]+)\/verification-commands$/);
+    if (repositoryCommandsMatch) {
+      const repositoryId = decodeURIComponent(repositoryCommandsMatch[1]);
+      if (request.method === "GET") {
+        return sendJson(response, 200, { verificationCommands: listRepositoryVerificationCommands(await readNeutralStore(neutralStore), repositoryId) });
+      }
+      if (request.method === "PUT") {
+        const result = await replaceRepositoryVerificationCommands(neutralStore, repositoryId, await readJson(request));
+        traceAgentStep(null, "verification.policy.updated", { repositoryId, commandCount: result.verificationCommands.length });
+        return sendJson(response, 200, { verificationCommands: result.verificationCommands });
+      }
+      return sendJson(response, 405, { error: "Method not allowed for Repository verification commands." });
+    }
+
     if (requestUrl.pathname === "/api/harness-accounts") {
-      const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
       if (request.method === "GET") {
         const store = await readNeutralStore(neutralStore);
-        return sendJson(response, 200, { harnessAccounts: listHarnessAccountViews(store, runtimeStatus) });
+        return sendJson(response, 200, { harnessAccounts: listHarnessAccountViews(store, await probeHarnessRuntimeStatuses(store)) });
       }
       if (request.method === "POST") {
         const result = await createWorkspaceEntity(neutralStore, "harnessAccount", await readJson(request));
-        const [account] = listHarnessAccountViews({ ...result.store, harnessAccounts: [result.entity] }, runtimeStatus);
+        const [account] = listHarnessAccountViews({ ...result.store, harnessAccounts: [result.entity] }, await probeHarnessRuntimeStatuses(result.store));
         return sendJson(response, 201, { harnessAccount: account });
       }
       return sendJson(response, 405, { error: "Method not allowed for Harness Accounts." });
     }
 
     if (requestUrl.pathname === "/api/agent-models" && request.method === "GET") {
-      return sendJson(response, 200, { models: listSupportedAgentModels() });
+      const provider = requestUrl.searchParams.get("provider") || "openai";
+      if (!["openai", "opencode"].includes(provider)) return sendJson(response, 400, { error: "Agent model provider must be openai or opencode." });
+      return sendJson(response, 200, { models: listSupportedAgentModels(provider) });
     }
 
     const harnessAccountMatch = requestUrl.pathname.match(/^\/api\/harness-accounts\/([^/]+)$/);
@@ -254,8 +331,7 @@ const server = createServer(async (request, response) => {
       const id = decodeURIComponent(harnessAccountMatch[1]);
       if (request.method === "PATCH") {
         const result = await updateWorkspaceEntity(neutralStore, "harnessAccount", id, await readJson(request));
-        const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
-        const [account] = listHarnessAccountViews({ ...result.store, harnessAccounts: [result.entity] }, runtimeStatus);
+        const [account] = listHarnessAccountViews({ ...result.store, harnessAccounts: [result.entity] }, await probeHarnessRuntimeStatuses(result.store));
         return sendJson(response, 200, { harnessAccount: account });
       }
       if (request.method === "DELETE") {
@@ -266,14 +342,13 @@ const server = createServer(async (request, response) => {
     }
 
     if (requestUrl.pathname === "/api/agent-profiles") {
-      const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
       if (request.method === "GET") {
         const store = await readNeutralStore(neutralStore);
-        return sendJson(response, 200, { agentProfiles: listAgentProfileViews(store, runtimeStatus) });
+        return sendJson(response, 200, { agentProfiles: listAgentProfileViews(store, await probeHarnessRuntimeStatuses(store)) });
       }
       if (request.method === "POST") {
         const result = await createWorkspaceEntity(neutralStore, "agentProfile", await readJson(request));
-        const [profile] = listAgentProfileViews({ ...result.store, agentProfiles: [result.entity] }, runtimeStatus);
+        const [profile] = listAgentProfileViews({ ...result.store, agentProfiles: [result.entity] }, await probeHarnessRuntimeStatuses(result.store));
         return sendJson(response, 201, { agentProfile: profile });
       }
       return sendJson(response, 405, { error: "Method not allowed for Agent Profiles." });
@@ -284,8 +359,7 @@ const server = createServer(async (request, response) => {
       const id = decodeURIComponent(agentProfileMatch[1]);
       if (request.method === "PATCH") {
         const result = await updateWorkspaceEntity(neutralStore, "agentProfile", id, await readJson(request));
-        const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
-        const [profile] = listAgentProfileViews({ ...result.store, agentProfiles: [result.entity] }, runtimeStatus);
+        const [profile] = listAgentProfileViews({ ...result.store, agentProfiles: [result.entity] }, await probeHarnessRuntimeStatuses(result.store));
         return sendJson(response, 200, { agentProfile: profile });
       }
       if (request.method === "DELETE") {
@@ -296,14 +370,13 @@ const server = createServer(async (request, response) => {
     }
 
     if (requestUrl.pathname === "/api/agent-assignments") {
-      const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
       if (request.method === "GET") {
         const store = await readNeutralStore(neutralStore);
-        return sendJson(response, 200, { agentAssignments: listAgentAssignmentViews(store, runtimeStatus) });
+        return sendJson(response, 200, { agentAssignments: listAgentAssignmentViews(store, await probeHarnessRuntimeStatuses(store)) });
       }
       if (request.method === "POST") {
         const result = await createWorkspaceEntity(neutralStore, "agentAssignment", await readJson(request));
-        const [assignment] = listAgentAssignmentViews({ ...result.store, agentAssignments: [result.entity] }, runtimeStatus);
+        const [assignment] = listAgentAssignmentViews({ ...result.store, agentAssignments: [result.entity] }, await probeHarnessRuntimeStatuses(result.store));
         return sendJson(response, 201, { agentAssignment: assignment });
       }
       return sendJson(response, 405, { error: "Method not allowed for Agent Assignments." });
@@ -314,8 +387,7 @@ const server = createServer(async (request, response) => {
       const id = decodeURIComponent(agentAssignmentMatch[1]);
       if (request.method === "PATCH") {
         const result = await updateWorkspaceEntity(neutralStore, "agentAssignment", id, await readJson(request));
-        const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
-        const [assignment] = listAgentAssignmentViews({ ...result.store, agentAssignments: [result.entity] }, runtimeStatus);
+        const [assignment] = listAgentAssignmentViews({ ...result.store, agentAssignments: [result.entity] }, await probeHarnessRuntimeStatuses(result.store));
         return sendJson(response, 200, { agentAssignment: assignment });
       }
       if (request.method === "DELETE") {
@@ -323,6 +395,16 @@ const server = createServer(async (request, response) => {
         return sendJson(response, 200, { agentAssignment: result.entity });
       }
       return sendJson(response, 405, { error: "Method not allowed for this Agent Assignment." });
+    }
+
+    const issueAgentWorkMatch = requestUrl.pathname.match(/^\/api\/issues\/([^/]+)\/agent-work$/);
+    if (issueAgentWorkMatch && request.method === "GET") {
+      const store = await readNeutralStore(neutralStore);
+      return sendJson(response, 200, getIssueAgentWorkView(
+        store,
+        decodeURIComponent(issueAgentWorkMatch[1]),
+        await probeHarnessRuntimeStatuses(store)
+      ));
     }
 
     if (requestUrl.pathname === "/api/agent-tasks") {
@@ -361,7 +443,7 @@ const server = createServer(async (request, response) => {
       }
       if (request.method === "POST") {
         traceAgentStep(null, "run.requested", { agentTaskId: id });
-        const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
+        const runtimeStatus = await probeHarnessRuntimeStatuses(await readNeutralStore(neutralStore));
         const controller = new AbortController();
         let startedRunId = null;
         let startedResolve;
@@ -369,8 +451,10 @@ const server = createServer(async (request, response) => {
         const execution = executeAgentTaskTurn(neutralStore, id, await readJson(request), {
           runtimeStatus,
           executable: env.AHIVE_CODEX_EXECUTABLE,
+          openCodeExecutable: env.AHIVE_OPENCODE_EXECUTABLE,
           cwd: root,
           signal: controller.signal,
+          verboseTrace: env.AHIVE_AGENT_TRACE_VERBOSE === "true",
           repositoryToolRuntime,
           onRunStarted: run => {
             startedRunId = run.id;
@@ -387,10 +471,17 @@ const server = createServer(async (request, response) => {
               traceAgentStep(runId, event.type, event);
             }
           },
-          onTrace: event => traceAgentStep(event.runId, `repository.${event.tool}.${event.phase}`, event)
+          onTrace: event => traceAgentStep(event.runId, `repository.${event.tool}.${event.phase}`, event),
+          onAdapterTrace: event => traceAgentStep(event.runId, `adapter.${event.phase}`, event)
         });
-        execution.then(result => {
+        execution.then(async result => {
           activeRunControllers.delete(result.run.id);
+          const artifacts = await runArtifactService.captureOutcome(result.run.id, {
+            finalMessage: result.assistantMessage?.content,
+            errorSummary: result.run.errorSummary,
+            status: result.run.status
+          }).catch(error => traceAgentStep(result.run.id, "artifact.capture.failed", { errorCode: String(error?.code || "artifact_capture_failed") }));
+          if (artifacts?.length) traceAgentStep(result.run.id, "artifact.outcome.persisted", { count: artifacts.length, kinds: artifacts.map(item => item.kind) });
           for (const activity of result.run.toolActivity || []) {
             traceAgentStep(result.run.id, `repository.audit.${activity.tool}.${activity.phase}`, activity);
           }
@@ -410,6 +501,228 @@ const server = createServer(async (request, response) => {
         return sendJson(response, 202, { agentRun: run });
       }
       return sendJson(response, 405, { error: "Method not allowed for Agent Runs." });
+    }
+
+    const agentTaskRepositoryMatch = requestUrl.pathname.match(/^\/api\/agent-tasks\/([^/]+)\/repository\/(tree|file)$/);
+    if (agentTaskRepositoryMatch && request.method === "GET") {
+      const taskId = decodeURIComponent(agentTaskRepositoryMatch[1]);
+      const operation = agentTaskRepositoryMatch[2];
+      const task = getAgentTaskView(await readNeutralStore(neutralStore), taskId);
+      if (!task.repositoryId) {
+        const error = new Error("This Agent Task has no assigned Repository.");
+        error.status = 409;
+        throw error;
+      }
+      const path = requestUrl.searchParams.get("path") || ".";
+      if (operation === "tree") {
+        return sendJson(response, 200, { directory: await repositoryBrowserService.browseDirectory(task.repositoryId, { path, limit: 200 }) });
+      }
+      return sendJson(response, 200, { file: await repositoryBrowserService.readText(task.repositoryId, {
+        path,
+        startLine: requestUrl.searchParams.get("startLine") || 1,
+        maxLines: 200
+      }) });
+    }
+
+    const agentRunApprovalsMatch = requestUrl.pathname.match(/^\/api\/agent-runs\/([^/]+)\/approvals$/);
+    if (agentRunApprovalsMatch) {
+      const runId = decodeURIComponent(agentRunApprovalsMatch[1]);
+      if (request.method === "GET") {
+        return sendJson(response, 200, { approvalRequests: listRunApprovalRequests(await readNeutralStore(neutralStore), runId) });
+      }
+      if (request.method === "POST") {
+        const result = await createRunApprovalRequest(neutralStore, runId, await readJson(request));
+        traceAgentStep(runId, "approval.requested", {
+          approvalRequestId: result.approval.id,
+          capability: result.approval.capability,
+          targetType: result.approval.targetType,
+          status: result.approval.status
+        });
+        return sendJson(response, 201, { approvalRequest: result.approval, agentRun: result.run });
+      }
+      return sendJson(response, 405, { error: "Method not allowed for Approval Requests." });
+    }
+
+    const agentRunApprovalOperationMatch = requestUrl.pathname.match(/^\/api\/agent-runs\/([^/]+)\/approvals\/([^/]+)\/(decision|cancel)$/);
+    if (agentRunApprovalOperationMatch && request.method === "POST") {
+      const runId = decodeURIComponent(agentRunApprovalOperationMatch[1]);
+      const approvalId = decodeURIComponent(agentRunApprovalOperationMatch[2]);
+      const operation = agentRunApprovalOperationMatch[3];
+      const input = await readJson(request);
+      const result = operation === "decision"
+        ? await decideRunApproval(neutralStore, runId, approvalId, input)
+        : await cancelRunApproval(neutralStore, runId, approvalId, input);
+      traceAgentStep(runId, `approval.${result.approval.status}`, {
+        approvalRequestId: result.approval.id,
+        capability: result.approval.capability,
+        targetType: result.approval.targetType,
+        status: result.approval.status,
+        actor: result.approval.cancelledBy || result.approval.decidedBy
+      });
+      const status = result.reason === "expired" ? 409 : 200;
+      return sendJson(response, status, { approvalRequest: result.approval, agentRun: result.run, accepted: result.accepted });
+    }
+
+    const agentRunWorktreeMatch = requestUrl.pathname.match(/^\/api\/agent-runs\/([^/]+)\/worktree$/);
+    if (agentRunWorktreeMatch) {
+      const runId = decodeURIComponent(agentRunWorktreeMatch[1]);
+      if (request.method === "GET") return sendJson(response, 200, { managedWorktree: await managedWorktreeService.getForRun(runId) });
+      if (request.method === "POST") {
+        const input = await readJson(request);
+        const worktree = await managedWorktreeService.create(runId, input.approvalRequestId, { actor: input.actor });
+        return sendJson(response, 201, { managedWorktree: worktree });
+      }
+      return sendJson(response, 405, { error: "Method not allowed for Agent Run worktree." });
+    }
+
+    const managedWorktreeOperationMatch = requestUrl.pathname.match(/^\/api\/managed-worktrees\/([^/]+)\/(inspect|retain|discard)$/);
+    if (managedWorktreeOperationMatch) {
+      if (request.method !== "POST" && !(request.method === "GET" && managedWorktreeOperationMatch[2] === "inspect")) {
+        return sendJson(response, 405, { error: "Method not allowed for managed worktree operation." });
+      }
+      const id = decodeURIComponent(managedWorktreeOperationMatch[1]);
+      const operation = managedWorktreeOperationMatch[2];
+      const worktree = operation === "inspect"
+        ? await managedWorktreeService.inspect(id)
+        : operation === "retain"
+          ? await managedWorktreeService.retain(id)
+          : await managedWorktreeService.discard(id, await readJson(request));
+      return sendJson(response, 200, { managedWorktree: worktree });
+    }
+
+    const guardedWriteMatch = requestUrl.pathname.match(/^\/api\/agent-runs\/([^/]+)\/guarded-write\/(apply-patch|create-file)$/);
+    if (guardedWriteMatch && request.method === "POST") {
+      const runId = decodeURIComponent(guardedWriteMatch[1]);
+      const operation = guardedWriteMatch[2];
+      const input = await readJson(request);
+      const result = operation === "apply-patch"
+        ? await guardedWriteService.applyPatch(runId, input)
+        : await guardedWriteService.createFile(runId, input);
+      return sendJson(response, 200, { fileChange: result });
+    }
+
+    const guardedWriteEventsMatch = requestUrl.pathname.match(/^\/api\/agent-runs\/([^/]+)\/file-changes$/);
+    if (guardedWriteEventsMatch && request.method === "GET") {
+      const runId = decodeURIComponent(guardedWriteEventsMatch[1]);
+      return sendJson(response, 200, { fileChanges: listGuardedFileChanges(await readNeutralStore(neutralStore), runId) });
+    }
+
+    const verificationExecutionMatch = requestUrl.pathname.match(/^\/api\/agent-runs\/([^/]+)\/verifications\/([^/]+)$/);
+    if (verificationExecutionMatch && request.method === "POST") {
+      const runId = decodeURIComponent(verificationExecutionMatch[1]);
+      const policyId = decodeURIComponent(verificationExecutionMatch[2]);
+      const input = await readJson(request);
+      const result = await verificationCommandService.execute(runId, policyId, { actor: input.actor });
+      return sendJson(response, 200, { verification: result });
+    }
+
+    const runArtifactsMatch = requestUrl.pathname.match(/^\/api\/agent-runs\/([^/]+)\/artifacts(?:\/([^/]+))?$/);
+    if (runArtifactsMatch && request.method === "GET") {
+      const runId = decodeURIComponent(runArtifactsMatch[1]);
+      const artifactId = runArtifactsMatch[2] ? decodeURIComponent(runArtifactsMatch[2]) : null;
+      if (artifactId) return sendJson(response, 200, await runArtifactService.read(runId, artifactId));
+      await runArtifactService.captureReview(runId);
+      return sendJson(response, 200, { artifacts: await runArtifactService.list(runId) });
+    }
+
+    const issueWritebackMatch = requestUrl.pathname.match(/^\/api\/agent-runs\/([^/]+)\/issue-writeback(?:\/(approval|execute))?$/);
+    if (issueWritebackMatch) {
+      const runId = decodeURIComponent(issueWritebackMatch[1]);
+      const operation = issueWritebackMatch[2] || "preview";
+      if (request.method === "GET" && operation === "preview") {
+        return sendJson(response, 200, { issueWriteback: getIssueWritebackView(await readNeutralStore(neutralStore), runId) });
+      }
+      if (request.method === "POST" && operation === "approval") {
+        const result = await createIssueWritebackApproval(neutralStore, runId, await readJson(request));
+        traceAgentStep(runId, "issue.writeback.approval_requested", {
+          writebackId: result.writeback.id,
+          approvalRequestId: result.approval.id,
+          targetId: result.approval.targetId,
+          requestedStatus: result.writeback.requestedStatus
+        });
+        return sendJson(response, 201, { issueWriteback: result.writeback, approvalRequest: result.approval, agentRun: result.run });
+      }
+      if (request.method === "POST" && operation === "execute") {
+        const input = await readJson(request);
+        const started = await beginIssueWriteback(neutralStore, runId, input.approvalRequestId, { actor: input.actor || "local-user" });
+        traceAgentStep(runId, "issue.writeback.started", {
+          writebackId: started.writeback.id,
+          approvalRequestId: started.approval.id,
+          provider: started.target.provider,
+          targetId: started.approval.targetId
+        });
+        try {
+          if (started.target.provider !== "gitlab") {
+            const unsupported = new Error(`Issue write-back is not implemented for ${started.target.provider}.`);
+            unsupported.code = "provider_not_supported";
+            unsupported.status = 409;
+            throw unsupported;
+          }
+          const credentialReference = String(started.target.credentialReference || "");
+          if (!/^[A-Z][A-Z0-9_]*$/.test(credentialReference) || !env[credentialReference]) {
+            const missing = new Error(`The ${credentialReference || "GitLab token"} credential reference is not configured.`);
+            missing.code = "credential_unavailable";
+            missing.status = 503;
+            throw missing;
+          }
+          const upstream = await updateGitLabIssueStatus({
+            token: env[credentialReference],
+            baseUrl: started.target.baseUrl || gitlabConfig.baseUrl
+          }, {
+            projectId: started.target.externalContainerId,
+            issueIid: started.target.externalIssueId,
+            completed: started.writeback.requestedStatus === "done"
+          });
+          const completed = await completeIssueWriteback(neutralStore, started.writeback.id, { upstreamState: upstream.gitlabState });
+          traceAgentStep(runId, "issue.writeback.succeeded", {
+            writebackId: completed.writeback.id,
+            requestedStatus: completed.writeback.requestedStatus,
+            upstreamState: completed.writeback.upstreamState
+          });
+          return sendJson(response, 200, { issueWriteback: completed.writeback, issue: completed.issue });
+        } catch (error) {
+          const failed = await failIssueWriteback(neutralStore, started.writeback.id, {
+            code: error.code || error.name || "upstream_write_failed",
+            message: error.message
+          });
+          traceAgentStep(runId, "issue.writeback.failed", {
+            writebackId: failed.writeback.id,
+            errorCode: failed.writeback.errorCode,
+            provider: started.target.provider
+          });
+          return sendJson(response, Number(error.status) || 502, { error: error.message, issueWriteback: failed.writeback });
+        }
+      }
+      return sendJson(response, 405, { error: "Method not allowed for Issue write-back." });
+    }
+
+    const runReviewMatch = requestUrl.pathname.match(/^\/api\/agent-runs\/([^/]+)\/review$/);
+    if (runReviewMatch) {
+      const runId = decodeURIComponent(runReviewMatch[1]);
+      if (request.method === "POST") {
+        const result = await setRunReviewStatus(neutralStore, runId, await readJson(request));
+        traceAgentStep(runId, "review.decision.recorded", { reviewStatus: result.agentRun.reviewStatus, actor: result.agentRun.reviewedBy });
+        return sendJson(response, 200, { agentRun: result.agentRun });
+      }
+      if (request.method === "GET") {
+        await runArtifactService.captureReview(runId);
+        const store = await readNeutralStore(neutralStore);
+        const run = store.agentRuns.find(item => item.id === runId);
+        if (!run) return sendJson(response, 404, { error: "Agent Run was not found." });
+        const task = store.agentTasks.find(item => item.id === run.agentTaskId);
+        const worktree = store.managedWorktrees.find(item => item.agentRunId === runId) || null;
+        const repository = task?.repositoryId ? store.repositories.find(item => item.id === task.repositoryId) : null;
+        return sendJson(response, 200, {
+          agentRun: run,
+          approvalRequests: listRunApprovalRequests(store, runId),
+          managedWorktree: worktree,
+          fileChanges: listGuardedFileChanges(store, runId),
+          verificationCommands: repository ? listRepositoryVerificationCommands(store, repository.id) : [],
+          issueWriteback: getIssueWritebackView(store, runId),
+          artifacts: await runArtifactService.list(runId)
+        });
+      }
+      return sendJson(response, 405, { error: "Method not allowed for Agent Run review." });
     }
 
     const agentRunEventsMatch = requestUrl.pathname.match(/^\/api\/agent-runs\/([^/]+)\/events$/);
@@ -439,11 +752,20 @@ const server = createServer(async (request, response) => {
     if (agentRunCancelMatch && request.method === "POST") {
       const runId = decodeURIComponent(agentRunCancelMatch[1]);
       const controller = activeRunControllers.get(runId);
-      if (!controller) return sendJson(response, 409, { error: "Agent Run is not active." });
-      controller.abort();
+      const verificationCancelled = verificationCommandService.cancel(runId);
+      if (!controller && !verificationCancelled) return sendJson(response, 409, { error: "Agent Run is not active." });
+      controller?.abort();
       runEventBroker.publish(runId, "run.cancelling", { status: "cancelling" });
-      traceAgentStep(runId, "run.cancelling", { status: "cancelling" });
+      traceAgentStep(runId, "run.cancelling", { status: "cancelling", verificationCancelled });
       return sendJson(response, 202, { agentRunId: runId, status: "cancelling" });
+    }
+
+    const agentRunRecoveryMatch = requestUrl.pathname.match(/^\/api\/agent-runs\/([^/]+)\/recovery\/acknowledge$/);
+    if (agentRunRecoveryMatch && request.method === "POST") {
+      const runId = decodeURIComponent(agentRunRecoveryMatch[1]);
+      const result = await acknowledgeAgentRunRecovery(neutralStore, runId, await readJson(request));
+      traceAgentStep(runId, "run.recovery.acknowledged", { status: result.agentRun.status, actor: result.agentRun.recovery.acknowledgedBy });
+      return sendJson(response, 200, { agentRun: result.agentRun });
     }
 
     const agentTaskMatch = requestUrl.pathname.match(/^\/api\/agent-tasks\/([^/]+)$/);
@@ -616,6 +938,20 @@ function traceAgentStep(runId, step, details = {}) {
   const safe = { timestamp: new Date().toISOString(), runId: runId || null, step };
   if (details.agentTaskId) safe.agentTaskId = String(details.agentTaskId);
   if (details.status) safe.status = String(details.status);
+  if (details.provider) safe.provider = String(details.provider).slice(0, 40);
+  if (details.adapter) safe.adapter = String(details.adapter).slice(0, 40);
+  if (details.operation) safe.operation = String(details.operation).slice(0, 80);
+  if (details.model) safe.model = String(details.model).slice(0, 120);
+  if (details.modelTransport) safe.modelTransport = String(details.modelTransport).slice(0, 40);
+  if (details.executable) safe.executable = String(details.executable).slice(0, 500);
+  if (details.usesSpawn === true) safe.usesSpawn = true;
+  if (details.shell === false) safe.shell = false;
+  if (env.AHIVE_AGENT_TRACE_VERBOSE === "true" && Array.isArray(details.command)) safe.command = details.command.map(value => String(value).slice(0, 20_000));
+  if (details.providerErrorCode) safe.providerErrorCode = String(details.providerErrorCode).slice(0, 80);
+  if (Number.isInteger(details.exitCode)) safe.exitCode = details.exitCode;
+  if (Number.isFinite(details.stdoutBytes)) safe.stdoutBytes = details.stdoutBytes;
+  if (Number.isFinite(details.stderrBytes)) safe.stderrBytes = details.stderrBytes;
+  if (Number.isFinite(details.timeoutMs)) safe.timeoutMs = details.timeoutMs;
   if (details.threadId) safe.threadId = String(details.threadId).slice(0, 80);
   if (details.toolType) safe.toolType = String(details.toolType).slice(0, 80);
   if (details.toolName) safe.toolName = String(details.toolName).slice(0, 80);
@@ -623,14 +959,41 @@ function traceAgentStep(runId, step, details = {}) {
   if (details.tool) safe.tool = String(details.tool).slice(0, 80);
   if (details.phase) safe.phase = String(details.phase).slice(0, 40);
   if (details.repositoryId) safe.repositoryId = String(details.repositoryId);
+  if (details.worktreeId) safe.worktreeId = String(details.worktreeId);
+  if (typeof details.present === "boolean") safe.present = details.present;
+  if (typeof details.dirty === "boolean") safe.dirty = details.dirty;
+  if (Number.isFinite(details.reconciled)) safe.reconciled = details.reconciled;
+  if (Number.isFinite(details.retained)) safe.retained = details.retained;
+  if (Number.isFinite(details.missing)) safe.missing = details.missing;
+  if (Number.isFinite(details.failures)) safe.failures = details.failures;
   if (details.errorCode) safe.errorCode = String(details.errorCode).slice(0, 80);
   if (Number.isFinite(details.durationMs)) safe.durationMs = details.durationMs;
   if (Number.isFinite(details.toolEvents)) safe.toolEvents = details.toolEvents;
-  if (details.usage && typeof details.usage === "object") safe.usage = details.usage;
+  for (const key of ["interruptedRuns", "cancelledApprovals", "expiredApprovals", "failedFileChanges", "failedIssueWritebacks", "automaticReplays"]) {
+    if (Number.isFinite(details[key])) safe[key] = details[key];
+  }
+  if (details.usage && typeof details.usage === "object") {
+    const usage = {};
+    for (const key of ["input_tokens", "cached_input_tokens", "output_tokens", "reasoning_output_tokens"]) {
+      if (Number.isFinite(details.usage[key])) usage[key] = Number(details.usage[key]);
+    }
+    if (Object.keys(usage).length) safe.usage = usage;
+  }
   if (typeof details.text === "string") safe.outputCharacters = details.text.length;
-  if (details.request && typeof details.request === "object") safe.request = details.request;
-  if (details.result && typeof details.result === "object") safe.result = details.result;
   console.log(`[agent-trace] ${JSON.stringify(safe)}`);
+}
+
+async function probeHarnessRuntimeStatuses(store) {
+  const providers = new Set((store.harnessAccounts || []).map(account => account.provider));
+  // Preserve the pre-OpenCode behavior for empty workspaces and Codex-only flows.
+  providers.add("openai");
+  const statuses = {};
+  await Promise.all([...providers].map(async provider => {
+    statuses[provider] = provider === "opencode"
+      ? await inspectOpenCodeCli({ executable: env.AHIVE_OPENCODE_EXECUTABLE })
+      : await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
+  }));
+  return statuses;
 }
 
 function sendJson(response, status, payload) {

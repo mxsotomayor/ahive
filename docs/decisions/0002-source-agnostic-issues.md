@@ -7,7 +7,7 @@ Superseded by: [0006](0006-product-scoped-sources-and-issue-origin.md)
 ## Context
 
 The initial prototype treated one GitLab dataset as the canonical set. The real
-goal is to manage Issues across multiple Zing Projects, clients, and providers.
+goal is to manage Issues across multiple Rezzilla, Labs, clients, and providers.
 A provider-shaped Issue cannot represent this safely.
 
 ## Decision

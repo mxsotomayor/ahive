@@ -48,6 +48,13 @@ test("lists, searches, reads, and summarizes only bounded Repository content", a
   const { repositoryPath, service, audit } = await fixture();
   const before = (await exec("git", ["status", "--porcelain=v1", "-uno"], { cwd: repositoryPath })).stdout;
 
+  const rootDirectory = await service.browseDirectory("repository-1", { path: "." });
+  assert.deepEqual(rootDirectory.entries.slice(0, 2).map(entry => [entry.name, entry.type]), [["src", "directory"], ["oversized.txt", "file"]]);
+  assert.ok(rootDirectory.entries.some(entry => entry.name === "README.md"));
+  assert.equal(rootDirectory.entries.some(entry => /\.env|private\.pem|image\.bin|node_modules|escape/.test(entry.path)), false);
+  const sourceDirectory = await service.browseDirectory("repository-1", { path: "src" });
+  assert.deepEqual(sourceDirectory.entries.map(entry => entry.path), ["src/app.mjs"]);
+
   const listed = await service.listFiles("repository-1", { limit: 50 });
   assert.ok(listed.files.some(file => file.path === "src/app.mjs"));
   assert.equal(listed.files.some(file => /\.env|private\.pem|image\.bin|node_modules|escape/.test(file.path)), false);
@@ -93,7 +100,7 @@ test("re-resolves Repository identity and state for every tool call", async () =
   await assert.rejects(() => service.listFiles("missing", { limit: 1 }), error => error.code === "repository_not_found");
 });
 
-test("exposes exactly four read-only tools through the stdio MCP boundary", async () => {
+test("exposes the bounded read-only Repository tools through the stdio MCP boundary", async () => {
   const { root, repositoryPath } = await fixture();
   const databasePath = join(root, "mcp.db");
   const database = openDatabase(databasePath);
@@ -115,7 +122,7 @@ test("exposes exactly four read-only tools through the stdio MCP boundary", asyn
   try {
     await client.connect(transport);
     const tools = await client.listTools();
-    assert.deepEqual(tools.tools.map(tool => tool.name).sort(), ["git_summary", "list_files", "read_text", "search_text"]);
+    assert.deepEqual(tools.tools.map(tool => tool.name).sort(), ["git_summary", "list_files", "list_verification_commands", "read_text", "search_text"]);
     assert.ok(tools.tools.every(tool => tool.annotations?.readOnlyHint === true && tool.annotations?.destructiveHint === false));
     const result = await client.callTool({ name: "read_text", arguments: { path: "src/app.mjs", maxLines: 1 } });
     assert.equal(result.isError, undefined);

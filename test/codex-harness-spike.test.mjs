@@ -27,7 +27,7 @@ test("builds read-only initial and resume invocations without a shell or API cre
     repositoryTools: { serverScript: "C:\\ahive\\server.mjs", databasePath: "C:\\ahive\\data.db", repositoryId: "repository-1", repositoryRoots: ["C:\\work"], auditPath: "C:\\ahive\\audit.jsonl", runId: "run-1", nodeExecutable: "C:\\node.exe" }
   });
   assert.ok(withRepository.some(value => value.includes("mcp_servers.ahive_repository.command")));
-  assert.ok(withRepository.some(value => value.includes('enabled_tools=["list_files","search_text","read_text","git_summary"]')));
+  assert.ok(withRepository.some(value => value.includes('enabled_tools=["list_files","search_text","read_text","git_summary","list_verification_commands"]')));
   assert.equal(withRepository.join(" ").includes("danger-full-access"), false);
 });
 

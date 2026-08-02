@@ -5,7 +5,7 @@ import { normalizeProjectItems, normalizePriority, normalizeStatus, updateProjec
 const project = {
   id: "PVT_project",
   title: "Delivery",
-  url: "https://github.com/orgs/Zing-Developers/projects/28",
+  url: "https://github.com/orgs/Rezzilla-Labs/projects/28",
   fields: {
     nodes: [{
       id: "PVTSSF_status",
@@ -29,9 +29,9 @@ const project = {
         ] },
         content: {
           id: "I_issue", number: 42, title: "Ship unified tracker", body: "Connect the project.",
-          url: "https://github.com/Zing-Developers/tracker/issues/42", state: "OPEN", updatedAt: "2026-07-17T10:00:00Z",
-          repository: { name: "tracker", nameWithOwner: "Zing-Developers/tracker" },
-          assignees: { nodes: [{ login: "nuno" }] }, labels: { nodes: [{ name: "feature" }] }, milestone: null
+          url: "https://github.com/Rezzilla-Labs/tracker/issues/42", state: "OPEN", updatedAt: "2026-07-17T10:00:00Z",
+          repository: { name: "tracker", nameWithOwner: "Rezzilla-Labs/tracker" },
+          assignees: { nodes: [{ login: "max" }] }, labels: { nodes: [{ name: "feature" }] }, milestone: null
         }
       },
       {
@@ -44,7 +44,7 @@ const project = {
 };
 
 test("normalizes only project items assigned to the authenticated viewer", () => {
-  const issues = normalizeProjectItems(project, "Nuno");
+  const issues = normalizeProjectItems(project, "Max");
   assert.equal(issues.length, 1);
   assert.equal(issues[0].id, "tracker#42");
   assert.equal(issues[0].status, "in_progress");
