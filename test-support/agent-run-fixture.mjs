@@ -19,7 +19,7 @@ export function agentRunFixtureStore() {
   });
   return {
     ...emptyNeutralStore(),
-    organizations: [{ id: "organization-1", name: "Zing", active: true, createdAt: fixtureNow, updatedAt: fixtureNow }],
+    organizations: [{ id: "organization-1", name: "Rezzilla-Labs", active: true, createdAt: fixtureNow, updatedAt: fixtureNow }],
     projects: [{ id: "project-1", organizationId: "organization-1", name: "IRN", key: "irn", active: true, createdAt: fixtureNow, updatedAt: fixtureNow }],
     harnessAccounts: [{ id: "harness-1", provider: "openai", adapter: "codex-cli", displayName: "Local Codex", authMode: "codex_session", credentialReferences: {}, capabilities: ["codex_exec"], active: true, createdAt: fixtureNow, updatedAt: fixtureNow }],
     agentProfiles: [{ id: "profile-1", harnessAccountId: "harness-1", name: "Developer", model: "gpt-5.6-sol", modelSettings: {}, active: true, createdAt: fixtureNow, updatedAt: fixtureNow }],

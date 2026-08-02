@@ -22,7 +22,7 @@ The employer or business context that owns Projects.
 id, name, type?, active, created_at, updated_at
 ```
 
-Example: Zing Developers.
+Example: Rezzilla, Labs.
 
 ### Project
 
@@ -118,7 +118,7 @@ capabilities
 active
 ```
 
-Examples include GitLab Accenture, GitHub Zing, or OpenProject IRN. Credentials
+Examples include GitLab Accenture, GitHub Rezzilla, Labs, or OpenProject IRN. Credentials
 are referenced and never stored in the Issue model.
 
 ### Product Source
@@ -205,7 +205,7 @@ resolution?
 
 ## Optional business context
 
-An Engagement may describe relationships between Organizations, such as Zing,
+An Engagement may describe relationships between Organizations, such as Rezzilla, Labs,
 Accenture, and IRN Portugal collaborating on IRN. It does not replace or alter
 the required Organization-to-Project ownership hierarchy.
 
@@ -274,19 +274,21 @@ Accounts are separate from Issue Connector Accounts.
 
 ```text
 id
-provider                  # openai initially
-adapter                   # codex-cli initially
+provider                  # openai or opencode
+adapter                   # codex-cli or opencode-cli
 display_name
-auth_mode                 # codex_session initially
+auth_mode                 # codex_session or opencode_auth
 capabilities
 active
 created_at
 updated_at
 ```
 
-The initial adapter invokes the local Codex CLI and reuses its cached login.
-Codex authentication files and tokens are runtime-owned state and are not
-copied into Ahive domain data.
+Codex invokes the local CLI and reuses its cached login; OpenCode invokes its
+local CLI and reuses credentials managed through `opencode auth`. CLI
+authentication files and tokens are runtime-owned state and are not copied into
+Ahive domain data. OpenCode supports read-only conversational Runs only;
+repository MCP, edits, shell commands, and worktree operations remain disabled.
 
 ### Agent Profile
 
@@ -311,10 +313,12 @@ updated_at
 style and personality. `instructions` defines operational behavior. Provider
 response IDs and SDK objects do not belong in the Profile.
 
-`model` must be selected from Ahive's fixed OpenAI catalog: `gpt-5.6-sol`,
+`model` must be selected from the fixed catalog for the Profile's Harness.
+The OpenAI catalog contains `gpt-5.6-sol`,
 `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.5`, `gpt-5.5-pro`, `gpt-5.4`,
 `gpt-5.4-pro`, or `gpt-5.4-mini`. The server exposes the same catalog through
-`GET /api/agent-models` and rejects arbitrary new model identifiers. Legacy
+`GET /api/agent-models`; use `?provider=opencode` for the OpenCode catalog.
+The server rejects arbitrary new model identifiers. Legacy
 stored identifiers remain readable, but editing the Profile requires choosing
 a supported value.
 

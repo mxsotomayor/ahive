@@ -229,7 +229,7 @@ async function approvePolicy(context, policy) {
 function fixtureStore(repositoryPath, rootPath, worktreePath, baseCommit) {
   return {
     ...emptyNeutralStore(),
-    organizations: [{ id: "organization-1", name: "Zing", active: true, createdAt: timestamp, updatedAt: timestamp }],
+    organizations: [{ id: "organization-1", name: "Rezzilla-Labs", active: true, createdAt: timestamp, updatedAt: timestamp }],
     projects: [{ id: "project-1", organizationId: "organization-1", name: "IRN", key: "irn", active: true, createdAt: timestamp, updatedAt: timestamp }],
     repositories: [{ id: "repository-1", projectId: "project-1", productId: null, name: "Base", localPath: repositoryPath, resolvedPath: repositoryPath, defaultBranch: "main", accessMode: "guarded_write", verificationCommands: [], verificationStatus: "verified", verifiedAt: timestamp, active: true, createdAt: timestamp, updatedAt: timestamp }],
     harnessAccounts: [{ id: "harness-1", provider: "openai", adapter: "codex-cli", displayName: "Local Codex", authMode: "codex_session", credentialReferences: {}, capabilities: ["codex_exec"], active: true, createdAt: timestamp, updatedAt: timestamp }],

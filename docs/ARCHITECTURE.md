@@ -215,15 +215,18 @@ provider field:
 2. **Model provider and model:** produces model responses.
 3. **Execution backend:** provides the approved repository workspace and tools.
 
-OpenAI is the intended first Harness/model provider. The domain and persistence
-contracts remain adapter-neutral.
+OpenAI is the first Harness/model provider and OpenCode is an accepted second
+local CLI Harness provider. The domain and persistence contracts remain
+adapter-neutral.
 
-Harness Accounts are stored separately from Issue Connector Accounts. The first
-validated adapter is `codex-cli` with `codex_session` authentication. A bounded
-local probe runs `codex --version` and `codex login status`; API projections
+Harness Accounts are stored separately from Issue Connector Accounts. Validated
+adapters are `codex-cli` with `codex_session` authentication and `opencode-cli`
+with `opencode_auth`. Bounded probes run `codex --version` plus `codex login
+status`, or `opencode --version` plus `opencode auth list`; API projections
 expose only installation, authentication, version, and readiness state. Ahive
-does not copy Codex's cached credentials and does not call OpenAI REST APIs.
-No model invocation occurs in this layer.
+does not copy CLI credentials. OpenCode conversational Runs use a bounded
+read-only `opencode run --format json` adapter; its repository MCP, edits,
+shell commands, worktrees, and verification remain disabled.
 
 The executable defaults to `codex` resolved from the server process `PATH` and
 can be overridden with `AHIVE_CODEX_EXECUTABLE`. On Windows, native `.exe`

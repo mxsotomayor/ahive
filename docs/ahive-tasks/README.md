@@ -62,6 +62,12 @@ Tasks are intentionally small, ordered, and independently verifiable.
 | [028](028-add-explicit-issue-writeback.md) | Add approved Issue status write-back | 027 | Complete |
 | [029](029-add-run-recovery-and-observability.md) | Add recovery and operational visibility | 018, 025 | Complete |
 | [030](030-complete-agent-mvp-acceptance.md) | Complete the first Agent MVP | 026–029 | Pending |
+| [031](031-add-opencode-harness-provider.md) | Accept the OpenCode CLI Harness provider | 011, 016 | Complete |
+| [032](032-run-opencode-read-only-agent-turns.md) | Run OpenCode read-only Agent turns | 031 | Complete |
+
+Task 031 was implemented ahead of the pending Task 030 at the product owner's
+direction; it changes no Codex behavior and does not alter the MVP acceptance
+scope.
 
 ## Milestones
 
@@ -73,3 +79,4 @@ Tasks are intentionally small, ordered, and independently verifiable.
 - **Safe repository work:** 020–026
 - **Issue-to-agent workflow:** 027–028
 - **MVP hardening:** 029–030
+- **Additional harness providers:** 031–032

@@ -81,7 +81,7 @@ async function startServer(port, databasePath, artifactRoot, directory) {
       AHIVE_DATABASE_PATH: databasePath,
       AHIVE_ARTIFACT_ROOT: artifactRoot,
       AHIVE_LEGACY_STORE_PATH: join(directory, "missing.json"),
-      MAXWELL_ORGANIZATION_NAME: "Zing",
+      MAXWELL_ORGANIZATION_NAME: "Rezzilla-Labs",
       MAXWELL_PROJECT_NAME: "IRN",
       MAXWELL_PRODUCT_NAME: "Portal"
     },

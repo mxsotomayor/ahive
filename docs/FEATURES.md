@@ -31,7 +31,11 @@ The executable backlog is maintained in
   - [x] Add reusable Agent Profiles (Task 012).
   - [x] Add Project-scoped Agent Assignments (Task 013).
   - [x] Build the Agent management surface (Task 014).
-  - [x] Restrict Agent Profiles to a selectable eight-model OpenAI catalog.
+   - [x] Restrict Agent Profiles to a selectable eight-model OpenAI catalog.
+   - [x] Accept OpenCode CLI Harness Accounts with provider-specific readiness
+     and a fixed 20-model catalog (Task 031).
+   - [x] Run OpenCode read-only conversational turns with streamed JSON events
+     and no repository MCP (Task 032).
 - [x] Support conversational, streamed, cancellable Agent Tasks (Tasks 015–019).
   - [x] Keep the conversation surface mounted during Run and page-state refreshes.
   - [x] Stream Codex app-server Agent message deltas into the active chat bubble.
@@ -182,8 +186,8 @@ the initial read-only Agent milestone unless required for correct Agent context.
 
 ### GitHub Projects
 
-- [ ] Obtain approved credentials for the Zing organization.
-- [ ] Configure the Zing GitHub Project as an IRN Product Source.
+- [ ] Obtain approved credentials for the Rezzilla, Labs organization.
+- [ ] Configure the Rezzilla, Labs GitHub Project as an IRN Product Source.
 - [ ] Define how an origin Issue is represented in GitHub.
 - [ ] Store GitHub item links and external versions.
 - [ ] Implement idempotent replica creation and status updates.

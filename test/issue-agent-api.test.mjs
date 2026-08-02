@@ -29,7 +29,7 @@ test("Issue Agent API creates only a scoped Task and preserves external identity
         AHIVE_DATABASE_PATH: databasePath,
         AHIVE_LEGACY_STORE_PATH: join(directory, "missing.json"),
         AHIVE_ARTIFACT_ROOT: join(directory, "artifacts"),
-        MAXWELL_ORGANIZATION_NAME: "Zing",
+        MAXWELL_ORGANIZATION_NAME: "Rezzilla",
         MAXWELL_PROJECT_NAME: "IRN",
         MAXWELL_PRODUCT_NAME: "Portal"
       },
@@ -84,7 +84,7 @@ test("Issue Agent API creates only a scoped Task and preserves external identity
 function fixtureStore() {
   return {
     ...emptyNeutralStore(),
-    organizations: [{ id: "organization-1", name: "Zing", active: true, createdAt: now, updatedAt: now }],
+    organizations: [{ id: "organization-1", name: "Rezzilla", active: true, createdAt: now, updatedAt: now }],
     projects: [{ id: "project-1", organizationId: "organization-1", name: "IRN", key: "irn", active: true, createdAt: now, updatedAt: now }],
     products: [
       { id: "product-1", projectId: "project-1", name: "Portal", key: "portal", active: true, createdAt: now, updatedAt: now },

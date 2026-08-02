@@ -101,7 +101,7 @@ function fixtureStore(baseUrl) {
   const run = id => ({ id: `run-${id}`, agentTaskId: `task-${id}`, conversationId: `conversation-${id}`, agentProfileSnapshot: { id: "profile-1", name: "Developer" }, assignmentSnapshot: { id: "assignment-1", project: { id: "project-1", name: "IRN" } }, harnessProvider: "openai", harnessAdapter: "codex-cli", model: "gpt-5.6-sol", status: "completed", startedAt: now, completedAt: now, usage: null, providerMetadata: {}, errorSummary: null, createdAt: now, updatedAt: now });
   return {
     ...emptyNeutralStore(),
-    organizations: [{ id: "organization-1", name: "Zing", active: true, createdAt: now, updatedAt: now }],
+    organizations: [{ id: "organization-1", name: "Rezzilla-Labs", active: true, createdAt: now, updatedAt: now }],
     projects: [{ id: "project-1", organizationId: "organization-1", name: "IRN", key: "irn", active: true, createdAt: now, updatedAt: now }],
     products: [{ id: "product-1", projectId: "project-1", name: "Portal", key: "portal", active: true, createdAt: now, updatedAt: now }],
     connectorAccounts: [{ id: "account-1", provider: "gitlab", displayName: "GitLab test", baseUrl, credentialReference: "GITLAB_TOKEN", capabilities: ["read", "close", "reopen"], active: true, createdAt: now, updatedAt: now }],

@@ -13,12 +13,12 @@ test("normalizes a GitLab issue into the Maxwell model", () => {
     labels: ["workflow::review", "priority::p1", "backend"],
     due_date: "2026-07-22",
     updated_at: "2026-07-17T12:00:00Z",
-    web_url: "https://gitlab.com/zing/billing/-/issues/31",
-    references: { full: "zing/billing#31" }
+    web_url: "https://gitlab.com/Rezzilla/billing/-/issues/31",
+    references: { full: "Rezzilla/billing#31" }
   });
 
-  assert.equal(issue.id, "zing/billing#31");
-  assert.equal(issue.project, "zing/billing");
+  assert.equal(issue.id, "Rezzilla/billing#31");
+  assert.equal(issue.project, "Rezzilla/billing");
   assert.equal(issue.status, "review");
   assert.equal(issue.priority, "high");
   assert.equal(issue.integration.projectId, 77);
@@ -68,8 +68,8 @@ test("creates and assigns a canonical issue in the default GitLab project", asyn
     const payload = isUser ? { id: 12, username: "maxwell" } : {
       id: 501, iid: 9, project_id: 77, title: "New canonical issue", description: "Created from Maxwell",
       state: "opened", labels: ["priority::high", "workflow::in progress"], due_date: "2026-07-25",
-      updated_at: "2026-07-17T12:00:00Z", web_url: "https://gitlab.example/zing/tracker/-/issues/9",
-      references: { full: "zing/tracker#9" }
+      updated_at: "2026-07-17T12:00:00Z", web_url: "https://gitlab.example/Rezzilla/tracker/-/issues/9",
+      references: { full: "Rezzilla/tracker#9" }
     };
     return { ok: true, status: isUser ? 200 : 201, headers: { get: name => name.toLowerCase() === "content-type" ? "application/json" : null }, json: async () => payload };
   };

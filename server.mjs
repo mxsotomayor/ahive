@@ -13,6 +13,7 @@ import { importLegacyNeutralStore } from "./lib/legacy-neutral-import.mjs";
 import { parseRepositoryRoots, verifyRepositoryPath } from "./lib/repository-paths.mjs";
 import { inspectGitRepository } from "./lib/git-inspection.mjs";
 import { inspectCodexCli } from "./lib/codex-cli.mjs";
+import { inspectOpenCodeCli } from "./lib/opencode-cli.mjs";
 import { RunEventBroker } from "./lib/run-event-broker.mjs";
 import { createRepositoryToolService } from "./lib/repository-tools.mjs";
 import { createManagedWorktreeService } from "./lib/git-worktrees.mjs";
@@ -86,7 +87,7 @@ const gitlabConfig = {
   defaultProjectId: env.GITLAB_DEFAULT_PROJECT_ID
 };
 const workspaceConfig = {
-  organizationName: env.MAXWELL_ORGANIZATION_NAME || "Zing Developers",
+  organizationName: env.MAXWELL_ORGANIZATION_NAME || "RezzillaLabs",
   projectName: env.MAXWELL_PROJECT_NAME || "IRN",
   productName: env.MAXWELL_PRODUCT_NAME || "IRN",
   gitlabBaseUrl: gitlabConfig.baseUrl,
@@ -307,21 +308,22 @@ const server = createServer(async (request, response) => {
     }
 
     if (requestUrl.pathname === "/api/harness-accounts") {
-      const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
       if (request.method === "GET") {
         const store = await readNeutralStore(neutralStore);
-        return sendJson(response, 200, { harnessAccounts: listHarnessAccountViews(store, runtimeStatus) });
+        return sendJson(response, 200, { harnessAccounts: listHarnessAccountViews(store, await probeHarnessRuntimeStatuses(store)) });
       }
       if (request.method === "POST") {
         const result = await createWorkspaceEntity(neutralStore, "harnessAccount", await readJson(request));
-        const [account] = listHarnessAccountViews({ ...result.store, harnessAccounts: [result.entity] }, runtimeStatus);
+        const [account] = listHarnessAccountViews({ ...result.store, harnessAccounts: [result.entity] }, await probeHarnessRuntimeStatuses(result.store));
         return sendJson(response, 201, { harnessAccount: account });
       }
       return sendJson(response, 405, { error: "Method not allowed for Harness Accounts." });
     }
 
     if (requestUrl.pathname === "/api/agent-models" && request.method === "GET") {
-      return sendJson(response, 200, { models: listSupportedAgentModels() });
+      const provider = requestUrl.searchParams.get("provider") || "openai";
+      if (!["openai", "opencode"].includes(provider)) return sendJson(response, 400, { error: "Agent model provider must be openai or opencode." });
+      return sendJson(response, 200, { models: listSupportedAgentModels(provider) });
     }
 
     const harnessAccountMatch = requestUrl.pathname.match(/^\/api\/harness-accounts\/([^/]+)$/);
@@ -329,8 +331,7 @@ const server = createServer(async (request, response) => {
       const id = decodeURIComponent(harnessAccountMatch[1]);
       if (request.method === "PATCH") {
         const result = await updateWorkspaceEntity(neutralStore, "harnessAccount", id, await readJson(request));
-        const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
-        const [account] = listHarnessAccountViews({ ...result.store, harnessAccounts: [result.entity] }, runtimeStatus);
+        const [account] = listHarnessAccountViews({ ...result.store, harnessAccounts: [result.entity] }, await probeHarnessRuntimeStatuses(result.store));
         return sendJson(response, 200, { harnessAccount: account });
       }
       if (request.method === "DELETE") {
@@ -341,14 +342,13 @@ const server = createServer(async (request, response) => {
     }
 
     if (requestUrl.pathname === "/api/agent-profiles") {
-      const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
       if (request.method === "GET") {
         const store = await readNeutralStore(neutralStore);
-        return sendJson(response, 200, { agentProfiles: listAgentProfileViews(store, runtimeStatus) });
+        return sendJson(response, 200, { agentProfiles: listAgentProfileViews(store, await probeHarnessRuntimeStatuses(store)) });
       }
       if (request.method === "POST") {
         const result = await createWorkspaceEntity(neutralStore, "agentProfile", await readJson(request));
-        const [profile] = listAgentProfileViews({ ...result.store, agentProfiles: [result.entity] }, runtimeStatus);
+        const [profile] = listAgentProfileViews({ ...result.store, agentProfiles: [result.entity] }, await probeHarnessRuntimeStatuses(result.store));
         return sendJson(response, 201, { agentProfile: profile });
       }
       return sendJson(response, 405, { error: "Method not allowed for Agent Profiles." });
@@ -359,8 +359,7 @@ const server = createServer(async (request, response) => {
       const id = decodeURIComponent(agentProfileMatch[1]);
       if (request.method === "PATCH") {
         const result = await updateWorkspaceEntity(neutralStore, "agentProfile", id, await readJson(request));
-        const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
-        const [profile] = listAgentProfileViews({ ...result.store, agentProfiles: [result.entity] }, runtimeStatus);
+        const [profile] = listAgentProfileViews({ ...result.store, agentProfiles: [result.entity] }, await probeHarnessRuntimeStatuses(result.store));
         return sendJson(response, 200, { agentProfile: profile });
       }
       if (request.method === "DELETE") {
@@ -371,14 +370,13 @@ const server = createServer(async (request, response) => {
     }
 
     if (requestUrl.pathname === "/api/agent-assignments") {
-      const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
       if (request.method === "GET") {
         const store = await readNeutralStore(neutralStore);
-        return sendJson(response, 200, { agentAssignments: listAgentAssignmentViews(store, runtimeStatus) });
+        return sendJson(response, 200, { agentAssignments: listAgentAssignmentViews(store, await probeHarnessRuntimeStatuses(store)) });
       }
       if (request.method === "POST") {
         const result = await createWorkspaceEntity(neutralStore, "agentAssignment", await readJson(request));
-        const [assignment] = listAgentAssignmentViews({ ...result.store, agentAssignments: [result.entity] }, runtimeStatus);
+        const [assignment] = listAgentAssignmentViews({ ...result.store, agentAssignments: [result.entity] }, await probeHarnessRuntimeStatuses(result.store));
         return sendJson(response, 201, { agentAssignment: assignment });
       }
       return sendJson(response, 405, { error: "Method not allowed for Agent Assignments." });
@@ -389,8 +387,7 @@ const server = createServer(async (request, response) => {
       const id = decodeURIComponent(agentAssignmentMatch[1]);
       if (request.method === "PATCH") {
         const result = await updateWorkspaceEntity(neutralStore, "agentAssignment", id, await readJson(request));
-        const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
-        const [assignment] = listAgentAssignmentViews({ ...result.store, agentAssignments: [result.entity] }, runtimeStatus);
+        const [assignment] = listAgentAssignmentViews({ ...result.store, agentAssignments: [result.entity] }, await probeHarnessRuntimeStatuses(result.store));
         return sendJson(response, 200, { agentAssignment: assignment });
       }
       if (request.method === "DELETE") {
@@ -402,11 +399,11 @@ const server = createServer(async (request, response) => {
 
     const issueAgentWorkMatch = requestUrl.pathname.match(/^\/api\/issues\/([^/]+)\/agent-work$/);
     if (issueAgentWorkMatch && request.method === "GET") {
-      const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
+      const store = await readNeutralStore(neutralStore);
       return sendJson(response, 200, getIssueAgentWorkView(
-        await readNeutralStore(neutralStore),
+        store,
         decodeURIComponent(issueAgentWorkMatch[1]),
-        runtimeStatus
+        await probeHarnessRuntimeStatuses(store)
       ));
     }
 
@@ -446,7 +443,7 @@ const server = createServer(async (request, response) => {
       }
       if (request.method === "POST") {
         traceAgentStep(null, "run.requested", { agentTaskId: id });
-        const runtimeStatus = await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
+        const runtimeStatus = await probeHarnessRuntimeStatuses(await readNeutralStore(neutralStore));
         const controller = new AbortController();
         let startedRunId = null;
         let startedResolve;
@@ -454,8 +451,10 @@ const server = createServer(async (request, response) => {
         const execution = executeAgentTaskTurn(neutralStore, id, await readJson(request), {
           runtimeStatus,
           executable: env.AHIVE_CODEX_EXECUTABLE,
+          openCodeExecutable: env.AHIVE_OPENCODE_EXECUTABLE,
           cwd: root,
           signal: controller.signal,
+          verboseTrace: env.AHIVE_AGENT_TRACE_VERBOSE === "true",
           repositoryToolRuntime,
           onRunStarted: run => {
             startedRunId = run.id;
@@ -472,7 +471,8 @@ const server = createServer(async (request, response) => {
               traceAgentStep(runId, event.type, event);
             }
           },
-          onTrace: event => traceAgentStep(event.runId, `repository.${event.tool}.${event.phase}`, event)
+          onTrace: event => traceAgentStep(event.runId, `repository.${event.tool}.${event.phase}`, event),
+          onAdapterTrace: event => traceAgentStep(event.runId, `adapter.${event.phase}`, event)
         });
         execution.then(async result => {
           activeRunControllers.delete(result.run.id);
@@ -938,6 +938,20 @@ function traceAgentStep(runId, step, details = {}) {
   const safe = { timestamp: new Date().toISOString(), runId: runId || null, step };
   if (details.agentTaskId) safe.agentTaskId = String(details.agentTaskId);
   if (details.status) safe.status = String(details.status);
+  if (details.provider) safe.provider = String(details.provider).slice(0, 40);
+  if (details.adapter) safe.adapter = String(details.adapter).slice(0, 40);
+  if (details.operation) safe.operation = String(details.operation).slice(0, 80);
+  if (details.model) safe.model = String(details.model).slice(0, 120);
+  if (details.modelTransport) safe.modelTransport = String(details.modelTransport).slice(0, 40);
+  if (details.executable) safe.executable = String(details.executable).slice(0, 500);
+  if (details.usesSpawn === true) safe.usesSpawn = true;
+  if (details.shell === false) safe.shell = false;
+  if (env.AHIVE_AGENT_TRACE_VERBOSE === "true" && Array.isArray(details.command)) safe.command = details.command.map(value => String(value).slice(0, 20_000));
+  if (details.providerErrorCode) safe.providerErrorCode = String(details.providerErrorCode).slice(0, 80);
+  if (Number.isInteger(details.exitCode)) safe.exitCode = details.exitCode;
+  if (Number.isFinite(details.stdoutBytes)) safe.stdoutBytes = details.stdoutBytes;
+  if (Number.isFinite(details.stderrBytes)) safe.stderrBytes = details.stderrBytes;
+  if (Number.isFinite(details.timeoutMs)) safe.timeoutMs = details.timeoutMs;
   if (details.threadId) safe.threadId = String(details.threadId).slice(0, 80);
   if (details.toolType) safe.toolType = String(details.toolType).slice(0, 80);
   if (details.toolName) safe.toolName = String(details.toolName).slice(0, 80);
@@ -967,6 +981,19 @@ function traceAgentStep(runId, step, details = {}) {
   }
   if (typeof details.text === "string") safe.outputCharacters = details.text.length;
   console.log(`[agent-trace] ${JSON.stringify(safe)}`);
+}
+
+async function probeHarnessRuntimeStatuses(store) {
+  const providers = new Set((store.harnessAccounts || []).map(account => account.provider));
+  // Preserve the pre-OpenCode behavior for empty workspaces and Codex-only flows.
+  providers.add("openai");
+  const statuses = {};
+  await Promise.all([...providers].map(async provider => {
+    statuses[provider] = provider === "opencode"
+      ? await inspectOpenCodeCli({ executable: env.AHIVE_OPENCODE_EXECUTABLE })
+      : await inspectCodexCli({ executable: env.AHIVE_CODEX_EXECUTABLE });
+  }));
+  return statuses;
 }
 
 function sendJson(response, status, payload) {

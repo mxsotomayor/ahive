@@ -124,7 +124,7 @@ function layout(content) {
           <button class="nav-item" data-toast="Notifications are all caught up">${icon("bell")}<span>Notifications</span><span class="notification-dot"></span></button>
           <button class="nav-item" data-toast="Settings will be added with authentication">${icon("settings")}<span>Settings</span></button>
         </nav>
-        <div class="profile"><span class="avatar">NM</span><div><strong>Nuno Monteiro</strong><small>Workspace owner</small></div><button aria-label="Profile options">•••</button></div>
+        <div class="profile"><span class="avatar">NM</span><div><strong>Max. S.Ramos</strong><small>Workspace owner</small></div><button aria-label="Profile options">•••</button></div>
       </aside>
       <main class="main-content">${content}</main>
     </div>`;
@@ -142,7 +142,7 @@ function dashboardPage() {
   const prioritized = [...active].sort((a,b) => (a.due || "9999-12-31").localeCompare(b.due || "9999-12-31"));
   const focusIssue = prioritized[0];
   return layout(`
-    ${topbar("Good morning, Nuno", "Friday, July 17")}
+    ${topbar("Good morning, Max", "Friday, July 17")}
     <section class="content-wrap">
       <div class="intro-row"><div><span class="truth-badge">GitLab · Source of truth</span><h2>Your work, in one place.</h2><p>Pull from GitLab locally, then publish the canonical set to connected targets.</p></div><div class="sync-actions"><button class="sync-button" data-sync="gitlab">${icon("sync")} Refresh from GitLab</button><button class="primary-button compact-button" data-action="outbound-sync">${icon("arrow")} Sync to other sources</button></div></div>
       <section class="stats-grid" aria-label="Issue overview">
@@ -323,7 +323,7 @@ function workspaceEntityModal(type, entity = null, parentId = null) {
 }
 
 function workspaceEntityFields(type, entity, parentId) {
-  if (type === "organization") return `<label>Name<input name="name" required value="${clean(entity?.name || "")}" placeholder="Zing Developers" /></label><label>Organization type<select name="type">${optionList(["employer", "client", "partner", "institution"], entity?.type || "employer")}</select></label>`;
+  if (type === "organization") return `<label>Name<input name="name" required value="${clean(entity?.name || "")}" placeholder="RezzillaLabs" /></label><label>Organization type<select name="type">${optionList(["employer", "client", "partner", "institution"], entity?.type || "employer")}</select></label>`;
   if (type === "project") {
     const organizationId = entity?.organizationId || parentId || state.workspace.organizations[0]?.id;
     return `${entity ? readonlyParent("Organization", state.workspace.organizations.find(item => item.id === organizationId)?.name) : selectField("Organization", "organizationId", state.workspace.organizations, organizationId)}<label>Name<input name="name" required value="${clean(entity?.name || "")}" placeholder="IRN" /></label><div class="form-grid"><label>Key<input name="key" value="${clean(entity?.key || "")}" placeholder="irn" /></label></div><label>Description<textarea name="description" rows="3" placeholder="Optional context">${clean(entity?.description || "")}</textarea></label>`;
@@ -342,7 +342,7 @@ function workspaceEntityFields(type, entity, parentId) {
   if (type === "connectorAccount") {
     const provider = entity?.provider || "gitlab";
     const refs = entity?.credentialReferences || {};
-    return `<label>Provider${entity ? `<input value="${clean(sourceInfo[provider]?.label || provider)}" readonly /><input name="provider" type="hidden" value="${clean(provider)}" />` : `<select name="provider" data-provider-select>${optionList(["gitlab", "github", "openproject", "sheets", "excel"], provider, value => sourceInfo[value]?.label || value)}</select>`}</label><label>Account name<input name="displayName" required value="${clean(entity?.displayName || "")}" placeholder="Google Sheets · Zing" /></label><div data-provider-generic ${provider === "sheets" ? "hidden" : ""}><label>Base URL<input name="baseUrl" type="url" value="${clean(entity?.baseUrl || "")}" placeholder="https://gitlab.example.com" />${entity ? `<small>The URL can change only while this account has no Product Sources.</small>` : ""}</label><label>Credential environment variable<input name="credentialReference" value="${clean(entity?.credentialReference || "")}" placeholder="GITLAB_TOKEN" pattern="[A-Z][A-Z0-9_]*" /><small>Enter only the variable name. Put its secret value in <code>.env</code>.</small></label></div><div data-provider-sheets ${provider === "sheets" ? "" : "hidden"}><label>OAuth client ID variable<input name="clientIdReference" value="${clean(refs.clientId || "GOOGLE_CLIENT_ID")}" pattern="[A-Z][A-Z0-9_]*" /></label><label>OAuth client secret variable<input name="clientSecretReference" value="${clean(refs.clientSecret || "GOOGLE_CLIENT_SECRET")}" pattern="[A-Z][A-Z0-9_]*" /></label><label>Optional refresh token variable<input name="refreshTokenReference" value="${clean(refs.refreshToken || "GOOGLE_REFRESH_TOKEN")}" pattern="[A-Z][A-Z0-9_]*" /><small>Normally Maxwell stores the refresh token locally after you authorize Google. Secret values are never stored in the workspace.</small></label></div>`;
+    return `<label>Provider${entity ? `<input value="${clean(sourceInfo[provider]?.label || provider)}" readonly /><input name="provider" type="hidden" value="${clean(provider)}" />` : `<select name="provider" data-provider-select>${optionList(["gitlab", "github", "openproject", "sheets", "excel"], provider, value => sourceInfo[value]?.label || value)}</select>`}</label><label>Account name<input name="displayName" required value="${clean(entity?.displayName || "")}" placeholder="Google Sheets · Rezzilla, Labs" /></label><div data-provider-generic ${provider === "sheets" ? "hidden" : ""}><label>Base URL<input name="baseUrl" type="url" value="${clean(entity?.baseUrl || "")}" placeholder="https://gitlab.example.com" />${entity ? `<small>The URL can change only while this account has no Product Sources.</small>` : ""}</label><label>Credential environment variable<input name="credentialReference" value="${clean(entity?.credentialReference || "")}" placeholder="GITLAB_TOKEN" pattern="[A-Z][A-Z0-9_]*" /><small>Enter only the variable name. Put its secret value in <code>.env</code>.</small></label></div><div data-provider-sheets ${provider === "sheets" ? "" : "hidden"}><label>OAuth client ID variable<input name="clientIdReference" value="${clean(refs.clientId || "GOOGLE_CLIENT_ID")}" pattern="[A-Z][A-Z0-9_]*" /></label><label>OAuth client secret variable<input name="clientSecretReference" value="${clean(refs.clientSecret || "GOOGLE_CLIENT_SECRET")}" pattern="[A-Z][A-Z0-9_]*" /></label><label>Optional refresh token variable<input name="refreshTokenReference" value="${clean(refs.refreshToken || "GOOGLE_REFRESH_TOKEN")}" pattern="[A-Z][A-Z0-9_]*" /><small>Normally Maxwell stores the refresh token locally after you authorize Google. Secret values are never stored in the workspace.</small></label></div>`;
   }
   if (type === "productSource") {
     const productId = entity?.productId || parentId || state.workspace.products[0]?.id;
@@ -360,7 +360,7 @@ function selectField(label, name, items, selectedId, displayField = "name") { re
 function optionList(values, selected, label = value => value[0].toUpperCase() + value.slice(1)) { return values.map(value => `<option value="${value}" ${value === selected ? "selected" : ""}>${clean(label(value))}</option>`).join(""); }
 
 function agentsPage() {
-  const subtitle = "Project-scoped conversations powered by your local Codex CLI";
+  const subtitle = "Project-scoped conversations powered by your local Agent CLI";
   if (state.agentsError) return layout(`${topbar("Agents", subtitle, false)}<section class="content-wrap"><div class="workspace-error"><h2>Agent configuration could not be loaded</h2><p>${clean(state.agentsError)}</p><button class="secondary-button" data-agents-refresh>${icon("sync")} Try again</button></div></section>`);
   if (state.agentsLoading || !state.agents || !state.workspace) return layout(`${topbar("Agents", subtitle, false)}<section class="content-wrap"><div class="workspace-loading">${icon("sync")} Loading Agent configuration...</div></section>`);
 
@@ -374,7 +374,7 @@ function agentsPage() {
   return layout(`
     ${topbar("Agents", subtitle, false)}
     <section class="content-wrap agents-page">
-      <div class="agents-hero"><div><span class="configuration-badge live">Codex CLI conversations</span><h2>Give your Agents focused work.</h2><p>Create a durable task inside an explicit Project context, then continue the conversation across multiple runs.</p></div><button class="primary-button compact-button" data-agent-task-create ${availableAssignments ? "" : "disabled"}>${icon("plus")} New Agent Task</button></div>
+      <div class="agents-hero"><div><span class="configuration-badge live">Local CLI conversations</span><h2>Give your Agents focused work.</h2><p>Create a durable task inside an explicit Project context, then continue the conversation across multiple runs.</p></div><button class="primary-button compact-button" data-agent-task-create ${availableAssignments ? "" : "disabled"}>${icon("plus")} New Agent Task</button></div>
       ${operationalHealthPanel(state.operationalHealth)}
       <section class="agent-metrics" aria-label="Agent configuration overview">
         ${agentMetric("Harness ready", `${readyHarnesses}/${harnessAccounts.length || 0}`, readyHarnesses ? "ready" : "attention")}
@@ -382,14 +382,14 @@ function agentsPage() {
         ${agentMetric("Assignments available", `${availableAssignments}/${agentAssignments.length || 0}`, availableAssignments ? "ready" : "neutral")}
       </section>
 
-      <div class="workspace-section-heading agent-section-heading"><div><span class="entity-kind">Conversations</span><h2>Agent Tasks</h2><p>Task history and assistant replies are persisted locally. Runs use the selected Assignment and your existing Codex login.</p></div><button class="secondary-button" data-agent-task-create ${availableAssignments ? "" : "disabled"}>${icon("plus")} Create Task</button></div>
+      <div class="workspace-section-heading agent-section-heading"><div><span class="entity-kind">Conversations</span><h2>Agent Tasks</h2><p>Task history and assistant replies are persisted locally. Runs use the selected Assignment and its local CLI login.</p></div><button class="secondary-button" data-agent-task-create ${availableAssignments ? "" : "disabled"}>${icon("plus")} Create Task</button></div>
       <section class="agent-task-list">
         ${agentTasks.length ? agentTasks.map(agentTaskCard).join("") : agentTaskEmpty(availableAssignments)}
       </section>
 
-      <div class="workspace-section-heading agent-section-heading"><div><span class="entity-kind">Execution environment</span><h2>Codex CLI Harness</h2><p>Uses the existing local Codex login. Ahive stores no OpenAI API key.</p></div>${harnessAccounts.length ? "" : `<button class="secondary-button" data-agent-create="harnessAccount">${icon("plus")} Configure Harness</button>`}</div>
+      <div class="workspace-section-heading agent-section-heading"><div><span class="entity-kind">Execution environment</span><h2>Agent CLI Harnesses</h2><p>Codex and OpenCode each keep their own local credentials; Ahive stores no provider API keys.</p></div><button class="secondary-button" data-agent-create="harnessAccount">${icon("plus")} Add Harness</button></div>
       <section class="harness-grid">
-        ${harnessAccounts.length ? harnessAccounts.map(harnessAccountCard).join("") : agentEmpty("No Harness configured", "Configure the local Codex CLI before creating Agent Profiles.", "harnessAccount", "Configure Codex CLI")}
+        ${harnessAccounts.length ? harnessAccounts.map(harnessAccountCard).join("") : agentEmpty("No Harness configured", "Configure a local Codex or OpenCode CLI before creating Agent Profiles.", "harnessAccount", "Configure Harness")}
       </section>
 
       <div class="workspace-section-heading agent-section-heading"><div><span class="entity-kind">Reusable behavior</span><h2>Agent Profiles</h2><p>Description, traits, instructions, model, and default policy stay independent of Projects.</p></div><button class="secondary-button" data-agent-create="agentProfile" ${hasActiveHarness ? "" : "disabled"}>${icon("plus")} Add Profile</button></div>
@@ -420,14 +420,22 @@ function operationalHealthPanel(health) {
 
 function harnessAccountCard(account) {
   const readiness = harnessReadiness(account);
-  return `<article class="harness-card ${account.active ? "" : "inactive"}"><div class="harness-symbol">CX</div><div class="harness-copy"><span class="entity-kind">OpenAI · Codex CLI</span><h3>${clean(account.displayName)}</h3><p>Cached Codex session · ${clean(account.configuration?.version ? `CLI ${account.configuration.version}` : "CLI version unavailable")}</p><div class="capability-list">${(account.capabilities || []).map(capability => `<span>${clean(capability.replaceAll("_", " "))}</span>`).join("")}</div></div><span class="readiness-pill ${readiness.className}">${clean(readiness.label)}</span><div class="agent-card-actions"><button class="icon-button small" data-agent-edit="harnessAccount" data-entity-id="${clean(account.id)}" aria-label="Edit ${clean(account.displayName)}">${icon("settings")}</button><button class="icon-button small danger-button" data-agent-remove="harnessAccount" data-entity-id="${clean(account.id)}" aria-label="Remove ${clean(account.displayName)}">${icon("trash")}</button></div><p class="readiness-detail">${clean(readiness.detail)}</p></article>`;
+  const harness = harnessInfo(account.provider);
+  return `<article class="harness-card ${account.active ? "" : "inactive"}"><div class="harness-symbol">${harness.symbol}</div><div class="harness-copy"><span class="entity-kind">${clean(harness.label)} · ${clean(harness.adapterLabel)}</span><h3>${clean(account.displayName)}</h3><p>${clean(harness.sessionLabel)} · ${clean(account.configuration?.version ? `CLI ${account.configuration.version}` : "CLI version unavailable")}</p><div class="capability-list">${(account.capabilities || []).map(capability => `<span>${clean(capability.replaceAll("_", " "))}</span>`).join("")}</div></div><span class="readiness-pill ${readiness.className}">${clean(readiness.label)}</span><div class="agent-card-actions"><button class="icon-button small" data-agent-edit="harnessAccount" data-entity-id="${clean(account.id)}" aria-label="Edit ${clean(account.displayName)}">${icon("settings")}</button><button class="icon-button small danger-button" data-agent-remove="harnessAccount" data-entity-id="${clean(account.id)}" aria-label="Remove ${clean(account.displayName)}">${icon("trash")}</button></div><p class="readiness-detail">${clean(readiness.detail)}</p></article>`;
 }
 
 function harnessReadiness(account) {
+  const harness = harnessInfo(account.provider);
   if (!account.active) return { label: "Inactive", className: "inactive", detail: "Activate this Harness before Profiles can start new work." };
-  if (account.configuration?.status === "ready") return { label: "Ready", className: "ready", detail: "Codex CLI is installed and signed in." };
-  if (account.configuration?.status === "authentication_required") return { label: "Sign-in required", className: "attention", detail: "Run codex login locally, then refresh this page." };
-  return { label: "CLI unavailable", className: "error", detail: "Install Codex CLI or correct AHIVE_CODEX_EXECUTABLE, then refresh." };
+  if (account.configuration?.status === "ready") return { label: "Ready", className: "ready", detail: `${harness.adapterLabel} is installed and signed in.` };
+  if (account.configuration?.status === "authentication_required") return { label: "Sign-in required", className: "attention", detail: `Run ${harness.loginCommand} locally, then refresh this page.` };
+  return { label: "CLI unavailable", className: "error", detail: `Install ${harness.adapterLabel} or correct ${harness.executableVariable}, then refresh.` };
+}
+
+function harnessInfo(provider) {
+  return provider === "opencode"
+    ? { label: "OpenCode", adapter: "opencode-cli", adapterLabel: "OpenCode CLI", executableVariable: "AHIVE_OPENCODE_EXECUTABLE", loginCommand: "opencode auth login", sessionLabel: "OpenCode CLI credentials", symbol: "OC" }
+    : { label: "OpenAI", adapter: "codex-cli", adapterLabel: "Codex CLI", executableVariable: "AHIVE_CODEX_EXECUTABLE", loginCommand: "codex login", sessionLabel: "Cached Codex session", symbol: "CX" };
 }
 
 function agentProfileCard(profile) {
@@ -501,7 +509,7 @@ function agentConversationModal() {
 function conversationMessage(message) {
   const role = message.role === "user" ? "You" : message.role === "assistant" ? "Agent" : "Notice";
   const streamAttributes = message.streaming ? ` data-stream-message aria-busy="true"` : "";
-  const content = message.streaming && !message.content ? "Codex is working…" : message.content;
+  const content = message.streaming && !message.content ? "Agent is working…" : message.content;
   return `<article class="conversation-message ${clean(message.role)} ${message.streaming ? "streaming" : ""}"${streamAttributes}><header><strong>${role}</strong>${message.streaming ? `<span data-stream-label>${message.content ? "Receiving response…" : "Working…"}</span>` : message.createdAt ? `<time>${clean(formatDateTime(message.createdAt))}</time>` : ""}</header><div class="conversation-message-body ${message.streaming && !message.content ? "placeholder" : ""}" ${message.streaming ? "data-stream-content" : ""}>${clean(content).replace(/\n/g, "<br>")}</div></article>`;
 }
 
@@ -514,12 +522,17 @@ function runStatusLabel(status) {
 }
 
 function runErrorCopy(run) {
-  if (run?.status === "cancelled") return "The active Codex process was cancelled. Your existing conversation is unchanged and you can send another turn.";
+  const harness = run?.harnessProvider === "opencode" ? "OpenCode CLI" : "Codex CLI";
+  if (run?.status === "cancelled") return `The active ${harness} process was cancelled. Your existing conversation is unchanged and you can send another turn.`;
   if (run?.status === "interrupted") return run.recovery?.classification === "manual_review"
     ? "The server restarted during protected work. No action was replayed; inspect the retained worktree and acknowledge the recovery before continuing."
     : "The server restarted during this Run. No action was replayed; acknowledge the recovery and send a new turn when ready.";
   const reason = String(run?.errorSummary || "unknown_error").replaceAll("_", " ");
-  return `Codex CLI reported ${reason}. Check the Harness status, then retry this turn.`;
+  if (run?.errorSummary === "opencode_insufficient_balance") {
+    const transport = run?.model?.startsWith("opencode-go/") ? "OpenCode Go" : "OpenCode Zen";
+    return `${transport} has insufficient balance for ${run.model}. Select a funded ${transport} model or switch transports, then retry.`;
+  }
+  return `${harness} reported ${reason}. Check the Harness status, model access, and provider balance, then retry this turn.`;
 }
 
 function formatDateTime(value) {
@@ -535,15 +548,24 @@ function agentEntityModal(type, entity = null, parentId = null) {
 }
 
 function agentEntityFields(type, entity, parentId) {
-  if (type === "harnessAccount") return `<div class="form-grid"><label>Provider<input value="OpenAI" readonly /><input name="provider" type="hidden" value="openai" /></label><label>Adapter<input value="Codex CLI" readonly /><input name="adapter" type="hidden" value="codex-cli" /></label></div><label>Display name<input name="displayName" required value="${clean(entity?.displayName || "")}" placeholder="Local Codex" /></label><div class="form-note">Authentication is owned by the local Codex CLI. Use <code>codex login</code>; do not enter an API key here.</div>`;
+  if (type === "harnessAccount") {
+    const provider = entity?.provider || "openai";
+    const harness = harnessInfo(provider);
+    const providerField = entity
+      ? `<input value="${clean(harness.label)}" readonly /><input name="provider" type="hidden" value="${clean(provider)}" />`
+      : `<select name="provider" data-harness-provider><option value="openai">OpenAI</option><option value="opencode">OpenCode</option></select>`;
+    return `<div class="form-grid"><label>Provider${providerField}</label><label>Adapter<input value="${clean(harness.adapterLabel)}" readonly data-harness-adapter-label /><input name="adapter" type="hidden" value="${clean(harness.adapter)}" data-harness-adapter /></label></div><label>Display name<input name="displayName" required value="${clean(entity?.displayName || "")}" placeholder="${provider === "opencode" ? "Local OpenCode" : "Local Codex"}" /></label><div class="form-note" data-harness-auth-note>Authentication is owned by the local ${clean(harness.adapterLabel)}. Use <code>${clean(harness.loginCommand)}</code>; do not enter an API key here.</div>`;
+  }
   if (type === "agentProfile") {
     const harnessId = entity?.harnessAccountId || state.agents.harnessAccounts.find(account => account.active)?.id || state.agents.harnessAccounts[0]?.id;
+    const harness = state.agents.harnessAccounts.find(account => account.id === harnessId);
     const settings = entity?.modelSettings || {};
-    const models = state.agents.models || [];
+    const models = agentModelCatalog(harness?.provider);
     const modelId = entity?.model || models[0]?.id || "";
     const modelOptions = models.map(model => `<option value="${clean(model.id)}" ${model.id === modelId ? "selected" : ""}>${clean(model.label)} · ${clean(model.id)}</option>`).join("");
-    const modelDescription = models.find(model => model.id === modelId)?.description || "Select a current OpenAI model.";
-    return `${selectField("Harness Account", "harnessAccountId", state.agents.harnessAccounts, harnessId, "displayName")}<label>Name<input name="name" required value="${clean(entity?.name || "")}" placeholder="Careful maintainer" /></label><label>Description<textarea name="description" rows="2" placeholder="What this Agent is for">${clean(entity?.description || "")}</textarea></label><label>Trait description<textarea name="traitDescription" rows="2" placeholder="Working style and personality">${clean(entity?.traitDescription || "")}</textarea></label><label>Operational instructions<textarea name="instructions" rows="4" placeholder="How the Agent should approach its work">${clean(entity?.instructions || "")}</textarea></label><div class="form-grid"><label>OpenAI model<select name="model" required data-agent-model>${modelOptions}</select><small data-agent-model-description>${clean(modelDescription)}</small></label><label>Reasoning effort<select name="reasoningEffort"><option value="">Codex default</option>${optionList(["minimal", "low", "medium", "high", "xhigh", "ultra"], settings.reasoningEffort || "")}</select></label><label>Verbosity<select name="verbosity"><option value="">Codex default</option>${optionList(["low", "medium", "high"], settings.verbosity || "")}</select></label><label>Service tier<input name="serviceTier" value="${clean(settings.serviceTier || "")}" placeholder="Optional, e.g. fast" /></label></div><label>Default tool policy ID<input name="defaultToolPolicyId" value="${clean(entity?.defaultToolPolicyId || "")}" placeholder="Optional policy reference" /></label>`;
+    const modelDescription = models.find(model => model.id === modelId)?.description || "Select a supported model.";
+    const harnessOptions = state.agents.harnessAccounts.map(item => `<option value="${clean(item.id)}" ${item.id === harnessId ? "selected" : ""}>${clean(item.displayName)}${item.active ? "" : " (inactive)"}</option>`).join("");
+    return `<label>Harness Account<select name="harnessAccountId" required data-agent-harness-select>${harnessOptions}</select></label><label>Name<input name="name" required value="${clean(entity?.name || "")}" placeholder="Careful maintainer" /></label><label>Description<textarea name="description" rows="2" placeholder="What this Agent is for">${clean(entity?.description || "")}</textarea></label><label>Trait description<textarea name="traitDescription" rows="2" placeholder="Working style and personality">${clean(entity?.traitDescription || "")}</textarea></label><label>Operational instructions<textarea name="instructions" rows="4" placeholder="How the Agent should approach its work">${clean(entity?.instructions || "")}</textarea></label><div class="form-grid"><label>Model<select name="model" required data-agent-model>${modelOptions}</select><small data-agent-model-description>${clean(modelDescription)}</small></label><label>Reasoning effort<select name="reasoningEffort"><option value="">Codex default</option>${optionList(["minimal", "low", "medium", "high", "xhigh", "ultra"], settings.reasoningEffort || "")}</select></label><label>Verbosity<select name="verbosity"><option value="">Codex default</option>${optionList(["low", "medium", "high"], settings.verbosity || "")}</select></label><label>Service tier<input name="serviceTier" value="${clean(settings.serviceTier || "")}" placeholder="Optional, e.g. fast" /></label></div><label>Default tool policy ID<input name="defaultToolPolicyId" value="${clean(entity?.defaultToolPolicyId || "")}" placeholder="Optional policy reference" /></label>`;
   }
   const profileId = entity?.agentProfileId || parentId || state.agents.agentProfiles.find(profile => profile.active)?.id || state.agents.agentProfiles[0]?.id;
   const projectId = entity?.projectId || state.workspace.projects.find(project => project.active)?.id || state.workspace.projects[0]?.id;
@@ -595,7 +617,7 @@ function issueDrawer(issue) {
     <header><div>${sourceBadge(issue.source)}<span class="issue-key">${issue.id}</span></div><button class="icon-button" data-action="close-overlay" aria-label="Close details">${icon("close")}</button></header>
     <div class="drawer-body"><div class="drawer-title"><span class="priority-dot ${issue.priority}"></span><h2>${issue.title}</h2></div><p class="description">${issue.description}</p>
       <div class="drawer-actions"><button class="primary-button" data-issue-work-agent="${clean(issue.maxwellIssueId || "")}" ${compatibleAssignments.length && issue.maxwellIssueId ? "" : "disabled"}>${icon("agent")} Work with agent</button><button class="secondary-button ${issue.status === "done" ? "completed" : ""}" data-complete="${issue.id}">${icon("check")} ${issue.status === "done" ? "Completed" : "Mark as done"}</button>${issue.sourceUrl ? `<a class="secondary-button" href="${issue.sourceUrl}" target="_blank" rel="noreferrer">Open in ${info.label} ${icon("external")}</a>` : `<button class="secondary-button" data-toast="Source links will activate with real integrations">Open in ${info.label} ${icon("external")}</button>`}</div>
-      <section class="detail-section"><h3>Details</h3><dl><div><dt>Status</dt><dd><span class="status-pill ${issue.status}">${statusLabel(issue.status)}</span></dd></div><div><dt>Priority</dt><dd class="capitalize">${issue.priority}</dd></div><div><dt>Project</dt><dd>${issue.project}</dd></div><div><dt>Due date</dt><dd class="${daysFromNow(issue.due) < 0 && issue.status !== "done" ? "danger-text" : ""}">${issue.due ? new Date(`${issue.due}T12:00:00`).toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric" }) : "No due date"}</dd></div><div><dt>Assigned to</dt><dd><span class="mini-avatar">NM</span> Nuno Monteiro</dd></div></dl></section>
+      <section class="detail-section"><h3>Details</h3><dl><div><dt>Status</dt><dd><span class="status-pill ${issue.status}">${statusLabel(issue.status)}</span></dd></div><div><dt>Priority</dt><dd class="capitalize">${issue.priority}</dd></div><div><dt>Project</dt><dd>${issue.project}</dd></div><div><dt>Due date</dt><dd class="${daysFromNow(issue.due) < 0 && issue.status !== "done" ? "danger-text" : ""}">${issue.due ? new Date(`${issue.due}T12:00:00`).toLocaleDateString("en", { month: "long", day: "numeric", year: "numeric" }) : "No due date"}</dd></div><div><dt>Assigned to</dt><dd><span class="mini-avatar">NM</span>Max S.Ramos</dd></div></dl></section>
       <section class="detail-section"><h3>Labels</h3><div class="labels">${issue.labels.map(label => `<span>${label}</span>`).join("")}</div></section>
       <section class="detail-section issue-agent-work"><div class="issue-agent-heading"><div><h3>Agent work</h3><p>Tasks remain linked to this Issue without changing its external identity.</p></div><b>${agentTasks.length}</b></div>${agentTasks.length ? `<div class="issue-agent-task-list">${agentTasks.map(issueAgentTaskCard).join("")}</div>` : `<div class="issue-agent-empty"><strong>No Agent Tasks yet</strong><p>${compatibleAssignments.length ? "Choose Work with agent to create the first linked Task." : "Configure an available Assignment for this Product to start Agent work."}</p></div>`}</section>
       <section class="source-trail"><span>${icon("sync")}</span><div><strong>${issue.source === "gitlab" ? "Canonical GitLab issue" : `Outbound copy in ${info.label}`}</strong><p>Last updated ${issue.updated}. ${issue.source === "gitlab" ? "GitLab is authoritative for this issue." : "Edit the linked GitLab issue to change canonical state."}</p></div></section>
@@ -715,6 +737,10 @@ function bindOverlayEvents() {
     agentForm.addEventListener("submit", saveAgentEntity);
     const modelSelect = agentForm.querySelector("[data-agent-model]");
     modelSelect?.addEventListener("change", () => updateAgentModelDescription(agentForm, modelSelect.value));
+    const harnessProviderSelect = agentForm.querySelector("[data-harness-provider]");
+    harnessProviderSelect?.addEventListener("change", () => updateHarnessAccountFields(agentForm, harnessProviderSelect.value));
+    const harnessSelect = agentForm.querySelector("[data-agent-harness-select]");
+    harnessSelect?.addEventListener("change", () => updateAgentProfileModels(agentForm, harnessSelect.value));
     const projectSelect = agentForm.querySelector("[data-assignment-project]");
     if (projectSelect) {
       populateAssignmentScope(agentForm, projectSelect.value);
@@ -772,8 +798,31 @@ function bindOverlayEvents() {
 
 function updateAgentModelDescription(form, modelId) {
   const target = form.querySelector("[data-agent-model-description]");
-  const model = state.agents?.models?.find(item => item.id === modelId);
+  const model = [...agentModelCatalog("openai"), ...agentModelCatalog("opencode")].find(item => item.id === modelId);
   if (target) target.textContent = model?.description || "Existing model; choose a supported option to change it.";
+}
+
+function agentModelCatalog(provider) {
+  return provider === "opencode" ? (state.agents?.opencodeModels || []) : (state.agents?.models || []);
+}
+
+function updateHarnessAccountFields(form, provider) {
+  const harness = harnessInfo(provider);
+  const adapter = form.querySelector("[data-harness-adapter]");
+  const adapterLabel = form.querySelector("[data-harness-adapter-label]");
+  const note = form.querySelector("[data-harness-auth-note]");
+  if (adapter) adapter.value = harness.adapter;
+  if (adapterLabel) adapterLabel.value = harness.adapterLabel;
+  if (note) note.innerHTML = `Authentication is owned by the local ${clean(harness.adapterLabel)}. Use <code>${clean(harness.loginCommand)}</code>; do not enter an API key here.`;
+}
+
+function updateAgentProfileModels(form, harnessId) {
+  const harness = state.agents?.harnessAccounts?.find(account => account.id === harnessId);
+  const models = agentModelCatalog(harness?.provider);
+  const select = form.querySelector("[data-agent-model]");
+  if (!select) return;
+  select.innerHTML = models.map(model => `<option value="${clean(model.id)}">${clean(model.label)} · ${clean(model.id)}</option>`).join("");
+  updateAgentModelDescription(form, select.value);
 }
 
 function openWorkspaceModal(type, entityId = null, parentId = null) {
@@ -793,7 +842,7 @@ function openAgentModal(type, entityId = null, parentId = null) {
   const collections = { harnessAccount: "harnessAccounts", agentProfile: "agentProfiles", agentAssignment: "agentAssignments" };
   const entity = entityId ? state.agents?.[collections[type]]?.find(item => item.id === entityId) : null;
   if (entityId && !entity) return toast("The Agent configuration could not be found.", "error");
-  if (type === "agentProfile" && !state.agents?.harnessAccounts.length) return toast("Configure a Codex CLI Harness first.", "error");
+  if (type === "agentProfile" && !state.agents?.harnessAccounts.length) return toast("Configure a Harness first.", "error");
   if (type === "agentAssignment" && !state.agents?.agentProfiles.length) return toast("Create an Agent Profile first.", "error");
   if (type === "agentAssignment" && !state.workspace?.projects.length) return toast("Create a Project first.", "error");
   document.getElementById("overlay-root").innerHTML = agentEntityModal(type, entity, parentId);
@@ -1887,6 +1936,7 @@ async function hydrateAgents(options = {}) {
       fetch("/api/agent-profiles"),
       fetch("/api/agent-assignments"),
       fetch("/api/agent-models"),
+      fetch("/api/agent-models?provider=opencode"),
       fetch("/api/agent-tasks"),
       fetch("/api/health")
     ]);
@@ -1898,9 +1948,10 @@ async function hydrateAgents(options = {}) {
       agentProfiles: payloads[1].agentProfiles || [],
       agentAssignments: payloads[2].agentAssignments || [],
       models: payloads[3].models || [],
-      agentTasks: payloads[4].agentTasks || []
+      opencodeModels: payloads[4].models || [],
+      agentTasks: payloads[5].agentTasks || []
     };
-    state.operationalHealth = payloads[5];
+    state.operationalHealth = payloads[6];
   } catch (error) {
     state.agentsError = error.message;
   } finally {

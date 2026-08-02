@@ -27,7 +27,7 @@ test("Approval Request API creates, decides, lists, and traces durable decisions
         PORT: String(port),
         AHIVE_DATABASE_PATH: databasePath,
         AHIVE_LEGACY_STORE_PATH: join(directory, "missing.json"),
-        MAXWELL_ORGANIZATION_NAME: "Zing",
+        MAXWELL_ORGANIZATION_NAME: "Rezzilla-Labs",
         MAXWELL_PROJECT_NAME: "IRN",
         MAXWELL_PRODUCT_NAME: "Portal"
       },

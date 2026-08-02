@@ -25,6 +25,7 @@ Key documents:
 - [Architecture](docs/ARCHITECTURE.md)
 - [Features and roadmap](docs/FEATURES.md)
 - [FAQ](docs/FAQ.md)
+- [Configuration errors](docs/TROUBLESHOOTING.md)
 - [Decision records](docs/decisions/README.md)
 - [Agent implementation backlog](docs/ahive-tasks/README.md)
 
@@ -62,11 +63,12 @@ The same operations remain available through the API: create with `POST
 /api/repositories/:id/verify`, and inspect Git metadata with `GET
 /api/repositories/:id/inspect`.
 
-Use **Agents** in the sidebar to configure the local Codex CLI Harness, reusable
-Agent Profiles, and Project-scoped Assignments. Ahive uses the local `codex` CLI
-and its existing ChatGPT login. Run `codex login` if needed; Ahive neither calls
-the OpenAI REST API directly nor stores an OpenAI API key. The same CRUD flows
-are available at `/api/harness-accounts`, `/api/agent-profiles`, and
+Use **Agents** in the sidebar to configure local Codex CLI or OpenCode CLI
+Harnesses, reusable Agent Profiles, and Project-scoped Assignments. Codex uses
+its existing ChatGPT login (`codex login`); OpenCode owns its configured
+provider credentials (`opencode auth login`). Ahive neither copies CLI
+credentials nor stores provider API keys. The same CRUD flows are available at
+`/api/harness-accounts`, `/api/agent-profiles`, and
 `/api/agent-assignments`. Agent Profile models are chosen from the fixed catalog
 returned by `/api/agent-models`; arbitrary model text is not accepted.
 
@@ -74,7 +76,15 @@ The Codex CLI may be installed independently in the terminal; the VS Code
 extension is not required. Ahive resolves `codex` from `PATH`. On Windows it
 also safely supports the npm `codex.cmd` shim without invoking commands through
 a shell. Set `AHIVE_CODEX_EXECUTABLE` to an absolute standalone CLI path when
-multiple installations exist and PATH order selects the wrong one.
+multiple installations exist and PATH order selects the wrong one. If the
+Agents page reports the CLI as unavailable, see
+[configuration errors](docs/TROUBLESHOOTING.md).
+
+OpenCode resolves `opencode` from `PATH` and supports the Windows npm
+`opencode.cmd` shim without a shell. Set `AHIVE_OPENCODE_EXECUTABLE` to an
+absolute path when needed. OpenCode Harness Accounts currently support
+read-only conversational Runs. OpenCode edits, shell commands, repository MCP,
+worktrees, and verification remain unavailable.
 
 The **Agent Tasks** section in the Agents page creates durable Project-scoped
 tasks and opens their conversations. Send a message to start a bounded local
@@ -106,11 +116,18 @@ Run the development server in a visible terminal to trace Agent work:
 pnpm.cmd dev
 ```
 
-Every lifecycle and repository-tool step is printed as one structured
-`[agent-trace]` JSON line. Traces include Run IDs, tool names, safe request
-metadata, result counts, durations, and outcomes. They deliberately omit prompt
-text, file contents, command strings, credentials, and hidden reasoning. The
-same bounded repository-tool activity is stored on the durable Agent Run.
+Every lifecycle, CLI operation, transaction outcome, and repository-tool step
+is printed as one structured `[agent-trace]` JSON line. Traces include Run IDs,
+provider, adapter, model, operation name, timeout, session/thread ID, exit
+status, sanitized error code, tool names, safe request metadata, result counts,
+durations, and outcomes. They
+deliberately omit prompt text, file contents, raw command arguments,
+credentials, provider responses, and hidden reasoning. The same bounded
+repository-tool activity is stored on the durable Agent Run.
+
+Set `AHIVE_AGENT_TRACE_VERBOSE=true` in the ignored local `.env` to add the
+full OpenCode command argv (including the prompt) to server-console traces.
+Credentials, environment values, and provider response bodies remain excluded.
 Streaming trace lines report only cumulative output character counts, not the
 assistant text itself.
 

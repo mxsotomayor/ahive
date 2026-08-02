@@ -62,7 +62,7 @@ context to a Product, Repository, and Issue.
 The initial hierarchy remains:
 
 ```text
-Organization: Zing Developers
+Organization: Rezzilla, Labs
   Project: IRN
     Product: IRN
 ```

@@ -20,6 +20,8 @@ what already works, what remains, and why important decisions were made.
 9. [Codex Harness spike](CODEX-HARNESS-SPIKE.md) - accepted CLI process,
    streaming, redaction, continuation, cancellation, and Windows findings.
 10. [FAQ](FAQ.md) - durable answers to common product and behavior questions.
+11. [Configuration errors](TROUBLESHOOTING.md) - known configuration failures
+    and their fixes.
 
 ## Current model at a glance
 
